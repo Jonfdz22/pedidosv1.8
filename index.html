@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3.11.0/dist/email.min.js"></script>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent;}
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -42,7 +42,9 @@
   tr.resultado:active, tr.resultado.sel { background:#dbe9ff; }
   tr.resultado { cursor:pointer; }
   tr.ya-vinculado { background:#e8f5e9 !important; }
-  tr.ya-vinculado:hover { background:#c8e6c9 !important; }
+  tr.sobrante { background:#e8f5e9 !important; }
+  tr.faltante { background:#fee !important; }
+  tr.ok-row { background:#f8f9fb !important; }
   .cant { width:70px; text-align:center; font-weight:bold; }
   .small { font-size:12px; color:#666;}
   .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold; color:white;}
@@ -92,10 +94,8 @@
   .banner { padding:14px 16px; border-radius:10px; margin:10px 0; font-size:14px; line-height:1.4; display:none; }
   .banner.show { display:block; }
   .banner-info { background:#e3f2fd; border-left:6px solid #1a5fbf; color:#1a3a6b;}
-  .banner-ok { background:#e8f5e9; border-left:6px solid #1e8449; color:#0d4d26;}
   .banner-warn { background:#fff3e0; border-left:6px solid #e67e22; color:#7a3d00;}
   .banner-titulo { font-weight:bold; font-size:15px; margin-bottom:6px; display:flex; align-items:center; gap:8px;}
-  .banner-icono { font-size:22px; }
 
   .exito-fullscreen { position:fixed; inset:0; background:rgba(30,132,73,.97); color:white;
                       display:none; flex-direction:column; align-items:center; justify-content:center;
@@ -108,7 +108,6 @@
   .exito-fullscreen .detalle-grande { font-size:16px; line-height:1.6; background:rgba(0,0,0,.15);
                                        padding:16px 20px; border-radius:10px; font-family:monospace;
                                        max-width:90vw; word-break:break-all; }
-  .exito-fullscreen .pie { margin-top:24px; font-size:13px; opacity:.8; }
 
   .login-bg { position:fixed; inset:0; background:linear-gradient(135deg,#1a3a6b 0%,#0f2444 100%);
               display:flex; align-items:center; justify-content:center; padding:20px; z-index:1000; }
@@ -146,20 +145,16 @@
   .otp-input input:focus { border-color:#1a5fbf; outline:none; background:#f0f7ff;}
   .timer { text-align:center; color:#e67e22; font-weight:bold; font-size:14px; margin:8px 0;}
 
-  /* Inventario: estilos específicos */
-  .inv-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin:10px 0;}
-  .inv-stat { background:#f8f9fb; border-radius:8px; padding:12px; text-align:center; border:1px solid #e0e4ea;}
-  .inv-stat .num { font-size:22px; font-weight:bold; color:#1a3a6b; }
-  .inv-stat .lbl { font-size:11px; color:#666; text-transform:uppercase; margin-top:2px;}
+  .inv-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:8px; margin:10px 0;}
+  .inv-stat { background:#f8f9fb; border-radius:8px; padding:10px; text-align:center; border:1px solid #e0e4ea;}
+  .inv-stat .num { font-size:20px; font-weight:bold; color:#1a3a6b; }
+  .inv-stat .lbl { font-size:10px; color:#666; text-transform:uppercase; margin-top:2px;}
   .inv-stat.ok { border-color:#1e8449; background:#e8f5e9;}
   .inv-stat.warn { border-color:#e67e22; background:#fff3e0;}
   .inv-stat.err { border-color:#c0392b; background:#fee;}
   .dif-pos { color:#1e8449; font-weight:bold;}
   .dif-neg { color:#c0392b; font-weight:bold;}
   .dif-cero { color:#888; }
-  tr.sobrante { background:#e8f5e9 !important; }
-  tr.faltante { background:#fee !important; }
-  tr.ok-row { background:#f8f9fb !important; }
   .chip-counted { display:inline-block; background:#1e8449; color:white; padding:2px 8px;
                   border-radius:10px; font-size:10px; font-weight:bold; margin-left:4px;}
   .chip-pending { display:inline-block; background:#e67e22; color:white; padding:2px 8px;
@@ -174,7 +169,7 @@
 </head>
 <body>
 
-<!-- ================== LOGIN ================== -->
+<!-- LOGIN -->
 <div class="login-bg" id="loginBg" style="display:none;">
   <div class="login-card">
     <div class="logo">🎨</div>
@@ -187,7 +182,6 @@
            onkeydown="if(event.key==='Enter'){event.preventDefault();intentarLogin();}">
     <button class="verde" onclick="intentarLogin()">🔓 Entrar</button>
     <div class="login-error" id="loginError"></div>
-    <div class="login-info" id="loginInfo"></div>
     <button type="button" class="gris" style="width:100%; margin-top:10px; font-size:13px;"
             onclick="abrirRecuperar()">🆘 Olvidé mi contraseña</button>
     <p class="small" style="text-align:center; margin-top:20px;">
@@ -196,9 +190,7 @@
   </div>
 </div>
 
-<!-- ================== APP ================== -->
 <div id="app" style="display:none;">
-
 <header>
   <h1>📋 Sahagún</h1>
   <div class="tabs">
@@ -213,7 +205,7 @@
   </div>
 </header>
 
-<!-- ============ PESTAÑA PEDIDO ============ -->
+<!-- ============ PEDIDO ============ -->
 <div id="pestanaPedido">
   <div class="panel">
     <h3>1 · Catálogo (sube el PDF)</h3>
@@ -226,20 +218,15 @@
       <button class="gris" style="font-size:12px; padding:6px 10px;" onclick="olvidarCatalogo()">🗑 Olvidar catálogo</button>
     </div>
   </div>
-
   <div class="panel">
     <h3>2 · Busca o escanea</h3>
     <div class="fila">
       <input type="text" id="busqueda" placeholder="SKU, descripción o escanea…"
              oninput="buscar()" onkeydown="teclaBusqueda(event)">
-      <button class="camara" onclick="abrirCamara('buscar')" title="Escanear con cámara">📷</button>
+      <button class="camara" onclick="abrirCamara('buscar')">📷</button>
     </div>
-    <p class="small" style="margin:6px 0 0 0;">
-      Con lector externo: cursor aquí y dispara. Con celular: toca 📷.
-    </p>
     <div id="resultados"></div>
   </div>
-
   <div class="panel">
     <h3>3 · Pedido (<span id="contador">0</span>)</h3>
     <div class="fila" style="margin-bottom:8px;">
@@ -260,51 +247,46 @@
       </tfoot>
     </table>
   </div>
-
   <div class="acciones-fijas">
     <button class="verde" onclick="exportarExcel()">📥 Exportar Excel</button>
     <button class="rojo" onclick="limpiarPedido()">🗑 Limpiar</button>
   </div>
 </div>
 
-<!-- ============ PESTAÑA INVENTARIO ============ -->
+<!-- ============ INVENTARIO (REDISEÑADO) ============ -->
 <div id="pestanaInventario" style="display:none;">
   <div class="panel">
-    <h3>1 · Cargar inventario del sistema</h3>
+    <h3>📦 Inventario Físico</h3>
     <div class="ayuda">
-      Sube el archivo Excel con el <b>reporte del sistema</b>. Debe tener columnas como
-      <b>Clave</b> (SKU), <b>Descripción</b>, <b>Precio U.</b> y <b>Exis</b>.
+      Usa el mismo catálogo que ya cargaste en <b>Pedido</b> (PDF). Busca o escanea productos
+      y registra cuántos hay físicamente. Al final descarga el reporte.
     </div>
-    <input type="file" id="invFileInput" accept=".xlsx,.xls,.csv" onchange="procesarInventario(event)">
-    <div id="invInfo" class="small" style="margin-top:8px;"></div>
-    <div id="invBtnOlvidarWrap" style="margin-top:8px; display:none;">
-      <button class="gris" style="font-size:12px; padding:6px 10px;" onclick="olvidarInventario()">🗑 Olvidar inventario cargado</button>
+    <div class="inv-stats" id="invStatsTop"></div>
+    <div id="invAvisoSinCatalogo" class="banner banner-warn" style="display:none;">
+      <div class="banner-titulo">⚠️ Sin catálogo</div>
+      <div>Ve a la pestaña <b>Pedido</b> y sube el PDF primero.</div>
     </div>
   </div>
 
-  <div class="panel" id="invPanelContar" style="display:none;">
-    <h3>2 · Contar productos</h3>
+  <div class="panel">
+    <h3>Contar productos</h3>
     <div class="fila">
       <input type="text" id="invBusqueda" placeholder="SKU, descripción o escanea…"
              oninput="invBuscar()" onkeydown="invTeclaBusqueda(event)">
-      <button class="camara" onclick="abrirCamara('inventario')" title="Escanear con cámara">📷</button>
+      <button class="camara" onclick="abrirCamara('inventario')">📷</button>
     </div>
-    <p class="small" style="margin:6px 0 0 0;">
-      Escanea el código de barras o busca el producto. Ingresa la cantidad FÍSICA que hay.
-    </p>
+    <p class="small" style="margin:6px 0 0 0;">Escanea o busca. Escribe cuántos hay físicamente.</p>
     <div id="invResultados"></div>
   </div>
 
-  <div class="panel" id="invPanelResumen" style="display:none;">
-    <h3>3 · Resumen del conteo</h3>
+  <div class="panel" id="invPanelResumen">
+    <h3>Resumen del conteo</h3>
     <div class="inv-stats" id="invStats"></div>
-    <input type="text" id="invFiltro" placeholder="Filtrar productos…" oninput="renderInventario()">
+    <input type="text" id="invFiltro" placeholder="Filtrar productos contados…" oninput="renderInventario()">
     <div class="tabla-scroll">
       <table id="tablaInventario">
         <thead>
-          <tr>
-            <th>SKU</th><th>Descripción</th><th>Exis</th><th>Contado</th><th>Dif</th><th>Dif $</th>
-          </tr>
+          <tr><th>SKU</th><th>Descripción</th><th>Contado</th><th>Precio</th><th></th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -317,15 +299,14 @@
   </div>
 </div>
 
-<!-- ============ PESTAÑA VINCULAR ============ -->
+<!-- ============ VINCULAR ============ -->
 <div id="pestanaVincular" style="display:none;">
   <div class="panel">
     <h3>🔗 Vincular código de barras ↔ SKU</h3>
     <div class="ayuda">
-      <b>¿Para qué sirve?</b> Los códigos de barras de las latas NO son el SKU del PDF.
-      Aquí los "aprendes": <i>"este código de barras = este SKU"</i>. Cada SKU tiene un solo código.
+      <b>¿Para qué sirve?</b> Los códigos de barras NO son el SKU del PDF. Aquí los "aprendes".
+      Cada SKU tiene un solo código.
     </div>
-
     <div class="paso">
       <div style="margin-bottom:8px;">
         <span class="paso-num">1</span><b>Escanea o escribe el código de barras</b>
@@ -334,47 +315,36 @@
         <input type="text" id="inputCodigo" class="input-gigante" placeholder="Esperando código…"
                autocomplete="off"
                onkeydown="if(event.key==='Enter'){event.preventDefault();capturarCodigo();}">
-        <button class="camara" onclick="abrirCamara('vincular')" title="Escanear con cámara">📷</button>
+        <button class="camara" onclick="abrirCamara('vincular')">📷</button>
       </div>
-      <p class="small" style="margin:6px 0 0 0;">
-        Con lector externo: dispara apuntando al código. Con celular: toca 📷.
-      </p>
-
       <div class="banner banner-warn" id="bannerCodigoYaVinculado">
-        <div class="banner-titulo"><span class="banner-icono">⚠️</span><span>Este código YA está vinculado</span></div>
+        <div class="banner-titulo"><span>⚠️</span><span>Este código YA está vinculado</span></div>
         <div id="bannerCodigoYaVinculadoTexto"></div>
       </div>
-
       <div class="banner banner-info" id="bannerCodigoNuevo">
-        <div class="banner-titulo"><span class="banner-icono">📦</span><span>Código capturado</span></div>
-        <div>Selecciona abajo el SKU al que pertenece este código.</div>
+        <div class="banner-titulo"><span>📦</span><span>Código capturado</span></div>
+        <div>Selecciona abajo el SKU.</div>
       </div>
     </div>
-
     <div id="paso2Wrap" class="paso" style="display:none; border-color:#1e8449;">
       <div style="margin-bottom:8px;">
         <span class="paso-num" style="background:#1e8449;">2</span><b>Busca el producto</b>
       </div>
-      <div class="info-vinculo">📦 Código capturado: <b id="codigoCapturado"></b></div>
-      <input type="text" id="busquedaSku" placeholder="Escribe SKU o descripción…"
+      <div class="info-vinculo">📦 Código: <b id="codigoCapturado"></b></div>
+      <input type="text" id="busquedaSku" placeholder="SKU o descripción…"
              oninput="buscarParaVincular()" autocomplete="off">
       <div id="resultadosSku" style="margin-top:8px; max-height:300px; overflow-y:auto;"></div>
       <button class="gris" style="margin-top:8px; font-size:12px;" onclick="limpiarInputCodigo()">↩ Cancelar</button>
     </div>
   </div>
-
   <div class="panel">
-    <h3>📋 Vínculos guardados (<span id="contadorVinculos">0</span>)</h3>
-    <div class="ayuda">
-      • 📤 <b>Exportar</b> = baja un archivo con TODOS tus vínculos.<br>
-      • 📥 <b>Importar</b> = sube ese archivo en otro dispositivo.
-    </div>
+    <h3>📋 Vínculos (<span id="contadorVinculos">0</span>)</h3>
     <div class="fila" style="margin-bottom:8px;">
       <button class="verde" style="flex:1;" onclick="exportarVinculos()">📤 Exportar</button>
       <button style="flex:1;" onclick="document.getElementById('inputImportar').click()">📥 Importar</button>
       <input type="file" id="inputImportar" accept=".json" style="display:none" onchange="importarVinculos(event)">
     </div>
-    <input type="text" id="filtroVinculos" placeholder="Filtrar vínculos…" oninput="renderVinculos()">
+    <input type="text" id="filtroVinculos" placeholder="Filtrar…" oninput="renderVinculos()">
     <div class="tabla-scroll">
       <table id="tablaVinculos">
         <thead><tr><th>Código</th><th>SKU</th><th>Descripción</th><th></th></tr></thead>
@@ -384,44 +354,29 @@
   </div>
 </div>
 
-<!-- ============ PESTAÑA AJUSTES ============ -->
+<!-- ============ AJUSTES ============ -->
 <div id="pestanaAjustes" style="display:none;">
   <div class="panel">
-    <h3>👥 Administrar usuarios</h3>
-    <div class="ayuda">
-      Crea, edita y elimina usuarios. Cada uno verá solo las pestañas que le marques.
-      <br><b>Importante:</b> registra un correo válido para la recuperación de contraseña.
-    </div>
-    <button class="verde" style="width:100%; margin-bottom:10px;" onclick="abrirModalUsuario()">
-      ➕ Agregar usuario
-    </button>
+    <h3>👥 Usuarios</h3>
+    <button class="verde" style="width:100%; margin-bottom:10px;" onclick="abrirModalUsuario()">➕ Agregar usuario</button>
     <div id="listaUsuarios"></div>
   </div>
-
   <div class="panel">
     <h3>🔑 Mi contraseña</h3>
-    <p class="small">Cambiar la contraseña de <b id="miUsuarioActual">—</b>.</p>
-    <button class="amarillo" style="width:100%;" onclick="abrirModalCambiarMiPassword()">
-      🔑 Cambiar mi contraseña
-    </button>
+    <p class="small">Cambiar contraseña de <b id="miUsuarioActual">—</b>.</p>
+    <button class="amarillo" style="width:100%;" onclick="abrirModalCambiarMiPassword()">🔑 Cambiar</button>
   </div>
-
   <div class="panel">
     <h3>💾 Respaldos</h3>
-    <p class="small">Guarda un archivo con TODA la configuración (catálogo, pedido, vínculos, inventario y usuarios).</p>
     <div class="fila">
-      <button class="verde" style="flex:1;" onclick="exportarRespaldo()">📤 Exportar respaldo</button>
-      <button style="flex:1;" onclick="document.getElementById('inputRespaldo').click()">📥 Restaurar respaldo</button>
+      <button class="verde" style="flex:1;" onclick="exportarRespaldo()">📤 Exportar</button>
+      <button style="flex:1;" onclick="document.getElementById('inputRespaldo').click()">📥 Restaurar</button>
       <input type="file" id="inputRespaldo" accept=".json" style="display:none" onchange="importarRespaldo(event)">
     </div>
   </div>
-
   <div class="panel">
-    <h3>📧 Configuración de EmailJS</h3>
+    <h3>📧 EmailJS</h3>
     <div class="ayuda" id="estadoEmailJS"></div>
-    <p class="small">
-      Necesitas cuenta gratuita en <b>emailjs.com</b>. Pega los 3 códigos que te dan.
-    </p>
     <label class="small">Public Key</label>
     <input type="text" id="cfgPublicKey" placeholder="Ej. AbCdEfGhIjKlMnOp">
     <label class="small" style="display:block; margin-top:8px;">Service ID</label>
@@ -433,25 +388,18 @@
       <button class="amarillo" onclick="probarEmailJS()">🧪 Probar</button>
     </div>
   </div>
-
   <div class="panel" style="border:2px solid #c0392b;">
     <h3>⚠️ Zona de riesgo</h3>
-    <p class="small">
-      <b>Solo visible para administradores.</b> Borra TODOS los usuarios y reinicia la app.
-    </p>
-    <button class="rojo" style="width:100%;" onclick="reiniciarUsuarios()">
-      🔄 Borrar usuarios y volver a admin/admin123
-    </button>
+    <button class="rojo" style="width:100%;" onclick="reiniciarUsuarios()">🔄 Borrar usuarios y volver a admin/admin123</button>
   </div>
 </div>
 
-<!-- ============ MODALES ============ -->
+<!-- MODALES -->
 <div class="modal-bg" id="modalCamara">
   <div class="modal">
-    <h3>📷 Escanear código</h3>
+    <h3>📷 Escanear</h3>
     <div id="reader"></div>
-    <p class="small" style="margin:8px 0;">Apunta al código de barras.</p>
-    <button class="rojo" style="width:100%;" onclick="cerrarCamara()">Cancelar</button>
+    <button class="rojo" style="width:100%; margin-top:10px;" onclick="cerrarCamara()">Cancelar</button>
   </div>
 </div>
 
@@ -471,7 +419,6 @@
 <div class="modal-bg" id="modalConteo">
   <div class="modal">
     <div id="conteoInfoProducto" style="margin-bottom:12px;"></div>
-    <div id="conteoSistema" style="background:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:12px; text-align:center;"></div>
     <label class="small">¿Cuántas piezas hay FÍSICAMENTE?</label>
     <input type="number" id="inputConteo" class="cant-grande" value="0" min="0" inputmode="numeric"
            onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarConteo();}">
@@ -488,8 +435,7 @@
     <div class="info-vinculo" style="background:#fff3e0; border-left-color:#e67e22;">
       No hay vínculo para: <b id="codigoRapido"></b>
     </div>
-    <p class="small">Busca el producto y asígnale este código.</p>
-    <input type="text" id="busquedaRapida" placeholder="Escribe SKU o descripción…"
+    <input type="text" id="busquedaRapida" placeholder="Busca SKU…"
            oninput="buscarVincularRapido()" autocomplete="off">
     <div id="resultadosRapido" style="max-height:280px; overflow-y:auto; margin-top:8px;"></div>
     <button class="rojo" style="width:100%; margin-top:10px;" onclick="cerrarVincularRapido()">Cancelar</button>
@@ -499,15 +445,15 @@
 <div class="modal-bg" id="modalUsuario">
   <div class="modal">
     <h3 id="modalUsuarioTitulo">➕ Agregar usuario</h3>
-    <label class="small">Nombre completo</label>
-    <input type="text" id="userNombre" placeholder="Ej. Juan Pérez" autocomplete="off">
+    <label class="small">Nombre</label>
+    <input type="text" id="userNombre" placeholder="Ej. Juan Pérez">
     <label class="small" style="display:block; margin-top:10px;">Usuario</label>
-    <input type="text" id="userUsuario" placeholder="Ej. juan" autocomplete="off" style="text-transform:lowercase;">
-    <label class="small" style="display:block; margin-top:10px;">Correo (para recuperación)</label>
-    <input type="email" id="userEmail" placeholder="Ej. juan@correo.com" autocomplete="off">
+    <input type="text" id="userUsuario" placeholder="Ej. juan" style="text-transform:lowercase;">
+    <label class="small" style="display:block; margin-top:10px;">Correo</label>
+    <input type="email" id="userEmail" placeholder="correo@ejemplo.com">
     <label class="small" style="display:block; margin-top:10px;" id="labelUserPassword">Contraseña</label>
-    <input type="password" id="userPassword" placeholder="Mínimo 4 caracteres" autocomplete="new-password">
-    <label class="small" style="display:block; margin-top:14px;">¿Qué pestañas puede ver?</label>
+    <input type="password" id="userPassword" placeholder="Mínimo 4 caracteres">
+    <label class="small" style="display:block; margin-top:14px;">Pestañas permitidas</label>
     <div class="permiso-check"><input type="checkbox" id="permPedido" checked><label for="permPedido">🛒 Pedido</label></div>
     <div class="permiso-check"><input type="checkbox" id="permInventario"><label for="permInventario">📦 Inventario</label></div>
     <div class="permiso-check"><input type="checkbox" id="permVincular"><label for="permVincular">🔗 Vincular</label></div>
@@ -522,12 +468,12 @@
 <div class="modal-bg" id="modalMiPassword">
   <div class="modal">
     <h3>🔑 Cambiar mi contraseña</h3>
-    <label class="small">Contraseña actual</label>
-    <input type="password" id="mpActual" autocomplete="current-password">
-    <label class="small" style="display:block; margin-top:10px;">Nueva contraseña</label>
-    <input type="password" id="mpNueva" autocomplete="new-password">
-    <label class="small" style="display:block; margin-top:10px;">Confirmar nueva contraseña</label>
-    <input type="password" id="mpConfirmar" autocomplete="new-password">
+    <label class="small">Actual</label>
+    <input type="password" id="mpActual">
+    <label class="small" style="display:block; margin-top:10px;">Nueva</label>
+    <input type="password" id="mpNueva">
+    <label class="small" style="display:block; margin-top:10px;">Confirmar</label>
+    <input type="password" id="mpConfirmar">
     <div class="fila" style="margin-top:16px;">
       <button class="verde" style="flex:1;" onclick="cambiarMiPassword()">💾 Guardar</button>
       <button class="gris" onclick="document.getElementById('modalMiPassword').classList.remove('activo')">Cancelar</button>
@@ -537,22 +483,19 @@
 
 </div><!-- /app -->
 
-<!-- ============ MODAL RECUPERACIÓN ============ -->
+<!-- MODAL RECUPERACIÓN -->
 <div class="modal-bg" id="modalRecuperar">
   <div class="modal">
     <div id="recPaso1">
       <h3>🆘 Recuperar contraseña</h3>
-      <p class="small">Escribe tu correo registrado. Si está registrado, te enviaremos un código de 6 dígitos.</p>
-      <label class="small">Tu correo registrado</label>
-      <input type="email" id="emailRecuperar" placeholder="tu@correo.com" autocomplete="email"
+      <p class="small">Si el correo está registrado, te enviaremos un código de 6 dígitos.</p>
+      <label class="small">Tu correo</label>
+      <input type="email" id="emailRecuperar" placeholder="tu@correo.com"
              onkeydown="if(event.key==='Enter'){event.preventDefault();enviarCodigoOTP();}">
       <div class="fila" style="margin-top:16px;">
         <button class="verde" style="flex:1;" onclick="enviarCodigoOTP()">📧 Enviar código</button>
         <button class="gris" onclick="cerrarRecuperar()">Cancelar</button>
       </div>
-      <p class="small" style="margin-top:14px;">
-        <b>Nota:</b> Si el correo no está registrado, no recibirás ningún código.
-      </p>
     </div>
     <div id="recPaso2" style="display:none;">
       <h3>🔢 Ingresa el código</h3>
@@ -567,16 +510,14 @@
       </div>
       <div class="timer" id="timerOTP">⏱ Expira en 10:00</div>
       <label class="small">Nueva contraseña</label>
-      <input type="password" id="nuevaPassOTP" placeholder="Mínimo 4 caracteres">
-      <label class="small" style="display:block; margin-top:10px;">Confirmar nueva contraseña</label>
-      <input type="password" id="nuevaPassOTP2" placeholder="Repite la contraseña">
+      <input type="password" id="nuevaPassOTP">
+      <label class="small" style="display:block; margin-top:10px;">Confirmar</label>
+      <input type="password" id="nuevaPassOTP2">
       <div class="fila" style="margin-top:16px;">
         <button class="verde" style="flex:1;" onclick="verificarOTP()">✅ Restablecer</button>
         <button class="gris" onclick="volverRecPaso1()">↩ Atrás</button>
       </div>
-      <button class="gris" style="width:100%; margin-top:8px; font-size:13px;" onclick="enviarCodigoOTP()">
-        🔄 Reenviar código
-      </button>
+      <button class="gris" style="width:100%; margin-top:8px; font-size:13px;" onclick="enviarCodigoOTP()">🔄 Reenviar</button>
     </div>
   </div>
 </div>
@@ -585,7 +526,6 @@
   <div class="icono-grande">✔</div>
   <div class="titulo">Vinculado con éxito</div>
   <div class="detalle-grande" id="exitoFullscreenDetalle"></div>
-  <div class="pie">Abriendo captura de cantidad…</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -593,13 +533,13 @@
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
-const KEY_STATE   = 'sahagun_state_v9';
+const KEY_STATE   = 'sahagun_state_v10';
 const KEY_MAP     = 'sahagun_mappings_v1';
 const KEY_USERS   = 'sahagun_users_v1';
 const KEY_SESSION = 'sahagun_session_v1';
 const KEY_CFG     = 'sahagun_config_v1';
 const KEY_OTP     = 'sahagun_otp_v1';
-const KEY_INV     = 'sahagun_inventario_v1';
+const KEY_INV     = 'sahagun_inventario_v10';
 const SESION_DIAS = 7;
 const OTP_MINUTOS = 10;
 
@@ -622,19 +562,17 @@ let configEmailJS = { publicKey: '', serviceId: '', templateId: '' };
 let otpTimerInterval = null;
 let otpActual = null;
 
-// Inventario
-let inventarioBase = [];        // [{sku, descripcion, precio, exis}]
-let inventarioConteo = {};      // {sku: cantidadFisica}
+// Inventario (usa el mismo catálogo `productos`)
+let inventarioConteo = {};     // {sku: cantidadFisica}
 let invResultados = [];
 let invIndiceSel = -1;
 let invProductoActual = null;
-let invContadoFilter = 'todos'; // 'todos' | 'contados' | 'pendientes'
 
 document.getElementById('fecha').value = new Date().toLocaleDateString('es-MX');
 
 /* ============ HASH ============ */
 function hashPassword(str) {
-  const sal = 'sahagun_v8_salt_2026';
+  const sal = 'sahagun_v10_salt';
   const s = sal + str + sal;
   let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
   for (let k = 0; k < 500; k++) {
@@ -651,21 +589,23 @@ function hashPassword(str) {
   return a + b + a + b;
 }
 
-/* ============ CONFIG / EMAILJS ============ */
+/* ============ CONFIG / EMAILJS (v3 syntax) ============ */
 function cargarConfig() {
   try {
     const raw = localStorage.getItem(KEY_CFG);
     if (raw) configEmailJS = JSON.parse(raw);
   } catch(e) {}
-  // Inicializar EmailJS si hay public key y hay emailjs cargado
+  aplicarEmailJSInit();
+}
+function aplicarEmailJSInit() {
   const pk = (configEmailJS.publicKey || '').trim();
-  if (pk && typeof emailjs !== 'undefined') {
-    try {
-      // v3/v4: init con options object
-      emailjs.init({ publicKey: pk });
-    } catch(e1) {
-      try { emailjs.init(pk); } catch(e2) { console.warn('emailjs.init falló:', e2); }
-    }
+  if (!pk || typeof emailjs === 'undefined') return;
+  try {
+    // v3: init recibe el string, no un objeto
+    emailjs.init(pk);
+  } catch(e) {
+    console.warn('init v3 falló, probando v4:', e);
+    try { emailjs.init({ publicKey: pk }); } catch(e2) {}
   }
 }
 function guardarConfigEmailJS() {
@@ -674,32 +614,30 @@ function guardarConfigEmailJS() {
   const tid = (document.getElementById('cfgTemplateId').value || '').trim();
   configEmailJS = { publicKey: pk, serviceId: sid, templateId: tid };
   localStorage.setItem(KEY_CFG, JSON.stringify(configEmailJS));
-  if (pk && typeof emailjs !== 'undefined') {
-    try { emailjs.init({ publicKey: pk }); } catch(e1) { try { emailjs.init(pk); } catch(e2){} }
-  }
+  aplicarEmailJSInit();
   actualizarEstadoEmailJS();
-  toast('✔ Configuración guardada');
+  toast('✔ Guardado');
 }
 function actualizarEstadoEmailJS() {
   const el = document.getElementById('estadoEmailJS');
   if (!el) return;
   if (configEmailJS.publicKey && configEmailJS.serviceId && configEmailJS.templateId) {
-    el.innerHTML = '✅ <b>Configurado.</b> Presiona "Probar" para verificar.';
+    el.innerHTML = '✅ Configurado. Presiona "Probar".';
     el.style.background = '#e8f5e9';
     el.style.borderLeftColor = '#1e8449';
   } else {
-    el.innerHTML = '⚠️ <b>No configurado.</b> Faltan datos.';
+    el.innerHTML = '⚠️ Faltan datos.';
     el.style.background = '#fff3e0';
     el.style.borderLeftColor = '#e67e22';
   }
 }
 async function probarEmailJS() {
   if (!configEmailJS.publicKey || !configEmailJS.serviceId || !configEmailJS.templateId) {
-    alert('Primero guarda los 3 datos.');
-    return;
+    alert('Primero guarda los 3 datos.'); return;
   }
-  const correo = prompt('Escribe un correo para mandar la prueba:');
+  const correo = prompt('¿A qué correo mando la prueba?');
   if (!correo) return;
+  aplicarEmailJSInit();
   try {
     await emailjs.send(configEmailJS.serviceId, configEmailJS.templateId, {
       to_email: correo,
@@ -709,7 +647,7 @@ async function probarEmailJS() {
       minutes: 10,
       app_name: 'Sahagún Pedidos'
     });
-    alert('✅ ¡Correo de prueba enviado! Revisa tu bandeja (y spam).');
+    alert('✅ ¡Correo enviado! Revisa tu bandeja y SPAM.');
   } catch (err) {
     console.error(err);
     alert('❌ Error: ' + (err?.text || err?.message || JSON.stringify(err)));
@@ -719,9 +657,7 @@ async function probarEmailJS() {
 /* ============ USUARIOS ============ */
 function inicializarUsuarios() {
   const raw = localStorage.getItem(KEY_USERS);
-  if (raw) {
-    try { usuarios = JSON.parse(raw); } catch(e) { usuarios = {}; }
-  }
+  if (raw) { try { usuarios = JSON.parse(raw); } catch(e) { usuarios = {}; } }
   if (!usuarios || Object.keys(usuarios).length === 0) {
     usuarios = {};
     usuarios['admin'] = {
@@ -733,17 +669,11 @@ function inicializarUsuarios() {
     guardarUsuarios();
   }
 }
-function guardarUsuarios() {
-  try { localStorage.setItem(KEY_USERS, JSON.stringify(usuarios)); } catch(e) {}
-}
+function guardarUsuarios() { try { localStorage.setItem(KEY_USERS, JSON.stringify(usuarios)); } catch(e) {} }
 function reiniciarUsuarios() {
-  if (!usuarioLogueado || !usuarios[usuarioLogueado] || !usuarios[usuarioLogueado].permisos.ajustes) {
-    alert('⛔ No tienes permiso.');
-    return;
-  }
-  if (!confirm('⚠️ Se BORRARÁN todos los usuarios y volverá a admin / admin123.\n\n¿Continuar?')) return;
-  const palabra = prompt('Escribe BORRAR para confirmar:');
-  if (palabra !== 'BORRAR') { alert('Cancelado.'); return; }
+  if (!usuarioLogueado || !usuarios[usuarioLogueado]?.permisos.ajustes) { alert('⛔ Sin permiso.'); return; }
+  if (!confirm('⚠️ Se borrarán TODOS los usuarios.\n\n¿Continuar?')) return;
+  if (prompt('Escribe BORRAR para confirmar:') !== 'BORRAR') { alert('Cancelado.'); return; }
   usuarios = {};
   usuarios['admin'] = {
     nombre: 'Administrador', email: '',
@@ -756,10 +686,10 @@ function reiniciarUsuarios() {
   location.reload();
 }
 
-/* ============ SESIÓN ============ */
-function guardarSesion(username) {
+/* ============ SESIÓN / LOGIN ============ */
+function guardarSesion(u) {
   const expira = Date.now() + SESION_DIAS * 24 * 60 * 60 * 1000;
-  try { localStorage.setItem(KEY_SESSION, JSON.stringify({ usuario: username, expira })); } catch(e) {}
+  try { localStorage.setItem(KEY_SESSION, JSON.stringify({ usuario: u, expira })); } catch(e) {}
 }
 function cargarSesion() {
   try {
@@ -773,7 +703,6 @@ function cargarSesion() {
 }
 function borrarSesion() { try { localStorage.removeItem(KEY_SESSION); } catch(e) {} }
 
-/* ============ LOGIN ============ */
 function intentarLogin() {
   const u = document.getElementById('loginUsuario').value.trim().toLowerCase();
   const p = document.getElementById('loginPassword').value;
@@ -781,16 +710,15 @@ function intentarLogin() {
   err.classList.remove('show');
   if (!u || !p) { err.textContent = 'Ingresa usuario y contraseña'; err.classList.add('show'); return; }
   const usuario = usuarios[u];
-  if (!usuario) { err.textContent = 'Usuario o contraseña incorrectos'; err.classList.add('show'); return; }
-  if (hashPassword(p) !== usuario.hash) { err.textContent = 'Usuario o contraseña incorrectos'; err.classList.add('show'); return; }
+  if (!usuario || hashPassword(p) !== usuario.hash) {
+    err.textContent = 'Usuario o contraseña incorrectos'; err.classList.add('show'); return;
+  }
   usuarioLogueado = u;
   guardarSesion(u);
   entrarApp();
   if (usuario.primerLogin) {
     setTimeout(() => {
-      if (confirm('👋 ¡Bienvenido!\n\nEstás usando la contraseña por defecto (admin123).\n\n¿Quieres cambiarla ahora?')) {
-        abrirModalCambiarMiPassword();
-      }
+      if (confirm('👋 ¿Cambiar la contraseña por defecto ahora?')) abrirModalCambiarMiPassword();
     }, 400);
   }
 }
@@ -824,15 +752,12 @@ function volverRecPaso1() {
   document.getElementById('recPaso2').style.display = 'none';
   detenerTimerOTP();
 }
-function generarCodigoOTP() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
+function generarCodigoOTP() { return String(Math.floor(100000 + Math.random() * 900000)); }
 function enviarCodigoOTP() {
   const email = document.getElementById('emailRecuperar').value.trim().toLowerCase();
   if (!email) { alert('Escribe tu correo.'); return; }
   if (!configEmailJS.publicKey || !configEmailJS.serviceId || !configEmailJS.templateId) {
-    alert('⚠️ El administrador aún no ha configurado el envío de correos.');
-    return;
+    alert('⚠️ El administrador aún no ha configurado el envío de correos.'); return;
   }
   const encontrado = Object.entries(usuarios).find(([_, u]) => (u.email || '').toLowerCase() === email);
   if (!encontrado) {
@@ -843,7 +768,7 @@ function enviarCodigoOTP() {
     setTimeout(() => document.querySelector('#otpInputs input[data-idx="0"]').focus(), 100);
     otpActual = null;
     iniciarTimerOTP();
-    alert('Si el correo está registrado, recibirás un código en unos momentos.');
+    alert('Si el correo está registrado, recibirás un código.');
     return;
   }
   const [username, userData] = encontrado;
@@ -859,12 +784,7 @@ function enviarCodigoOTP() {
   setTimeout(() => document.querySelector('#otpInputs input[data-idx="0"]').focus(), 100);
   iniciarTimerOTP();
 
-  // Asegurar init antes de send
-  const pk = (configEmailJS.publicKey || '').trim();
-  if (pk && typeof emailjs !== 'undefined') {
-    try { emailjs.init({ publicKey: pk }); } catch(e1) { try { emailjs.init(pk); } catch(e2){} }
-  }
-
+  aplicarEmailJSInit();
   emailjs.send(configEmailJS.serviceId, configEmailJS.templateId, {
     to_email: email,
     to_name: userData.nombre || username,
@@ -873,11 +793,10 @@ function enviarCodigoOTP() {
     minutes: OTP_MINUTOS,
     app_name: 'Sahagún Pedidos'
   })
-  .then(() => { toast('📧 Código enviado a tu correo'); })
+  .then(() => toast('📧 Código enviado'))
   .catch(err => {
     console.error(err);
-    alert('❌ Error al enviar: ' + (err?.text || err?.message || 'desconocido') +
-          '\n\nRevisa que los 3 valores estén correctos y sin espacios.');
+    alert('❌ Error: ' + (err?.text || err?.message || JSON.stringify(err)));
   });
 }
 function iniciarTimerOTP() {
@@ -887,7 +806,7 @@ function iniciarTimerOTP() {
     if (!el) return;
     if (!otpActual) { el.textContent = '⏱ Esperando…'; el.style.color = '#888'; return; }
     const restante = otpActual.expira - Date.now();
-    if (restante <= 0) { el.textContent = '⏱ Código expirado.'; el.style.color = '#c0392b'; detenerTimerOTP(); return; }
+    if (restante <= 0) { el.textContent = '⏱ Expirado'; el.style.color = '#c0392b'; detenerTimerOTP(); return; }
     const min = Math.floor(restante / 60000);
     const seg = Math.floor((restante % 60000) / 1000);
     el.textContent = `⏱ Expira en ${min}:${String(seg).padStart(2,'0')}`;
@@ -896,9 +815,7 @@ function iniciarTimerOTP() {
   actualizar();
   otpTimerInterval = setInterval(actualizar, 1000);
 }
-function detenerTimerOTP() {
-  if (otpTimerInterval) { clearInterval(otpTimerInterval); otpTimerInterval = null; }
-}
+function detenerTimerOTP() { if (otpTimerInterval) { clearInterval(otpTimerInterval); otpTimerInterval = null; } }
 function verificarOTP() {
   const inputs = document.querySelectorAll('#otpInputs input');
   const codigo = Array.from(inputs).map(i => i.value).join('');
@@ -906,8 +823,8 @@ function verificarOTP() {
   const nueva2 = document.getElementById('nuevaPassOTP2').value;
   if (codigo.length !== 6) { alert('Ingresa los 6 dígitos.'); return; }
   if (!otpActual) { alert('❌ Código incorrecto o expirado.'); return; }
-  if (Date.now() > otpActual.expira) { alert('⏱ El código expiró.'); return; }
-  if (codigo !== otpActual.codigo) { alert('❌ Código incorrecto.'); return; }
+  if (Date.now() > otpActual.expira) { alert('⏱ Expirado.'); return; }
+  if (codigo !== otpActual.codigo) { alert('❌ Incorrecto.'); return; }
   if (nueva.length < 4) { alert('Mínimo 4 caracteres.'); return; }
   if (nueva !== nueva2) { alert('No coinciden.'); return; }
   const userAfectado = otpActual.usuario;
@@ -951,25 +868,19 @@ function aplicarPermisos() {
   if (u.permisos.ajustes) renderUsuarios();
 }
 
-/* ============ PESTAÑAS ============ */
 function cambiarPestana(t) {
   const u = usuarios[usuarioLogueado];
   if (u && !u.permisos[t]) { toast('⛔ Sin permiso', 'error'); return; }
   tabActual = t;
-  document.getElementById('tabPedido').classList.toggle('activo', t === 'pedido');
-  document.getElementById('tabInventario').classList.toggle('activo', t === 'inventario');
-  document.getElementById('tabVincular').classList.toggle('activo', t === 'vincular');
-  document.getElementById('tabAjustes').classList.toggle('activo', t === 'ajustes');
-
-  document.getElementById('pestanaPedido').style.display     = (t === 'pedido') ? 'block' : 'none';
-  document.getElementById('pestanaInventario').style.display = (t === 'inventario') ? 'block' : 'none';
-  document.getElementById('pestanaVincular').style.display   = (t === 'vincular') ? 'block' : 'none';
-  document.getElementById('pestanaAjustes').style.display    = (t === 'ajustes') ? 'block' : 'none';
-
-  if (t === 'vincular') { setTimeout(() => document.getElementById('inputCodigo').focus(), 100); }
+  ['pedido','inventario','vincular','ajustes'].forEach(x => {
+    const tab = document.getElementById('tab' + x.charAt(0).toUpperCase() + x.slice(1));
+    if (tab) tab.classList.toggle('activo', x === t);
+    const p = document.getElementById('pestana' + x.charAt(0).toUpperCase() + x.slice(1));
+    if (p) p.style.display = (x === t) ? 'block' : 'none';
+  });
+  if (t === 'vincular') setTimeout(() => document.getElementById('inputCodigo').focus(), 100);
   if (t === 'ajustes') { renderUsuarios(); actualizarEstadoEmailJS(); }
-  if (t === 'inventario') { renderInventario(); }
-
+  if (t === 'inventario') { renderInvTopStats(); renderInventario(); }
   guardarEstado();
 }
 
@@ -977,7 +888,7 @@ function cambiarPestana(t) {
 function renderUsuarios() {
   const cont = document.getElementById('listaUsuarios');
   const lista = Object.entries(usuarios);
-  if (!lista.length) { cont.innerHTML = '<p class="small">No hay usuarios.</p>'; return; }
+  if (!lista.length) { cont.innerHTML = '<p class="small">Sin usuarios.</p>'; return; }
   const np = { pedido: '🛒', inventario: '📦', vincular: '🔗', ajustes: '⚙️' };
   cont.innerHTML = lista.map(([user, u]) => {
     const chips = Object.entries(u.permisos).filter(([_, v]) => v).map(([k]) => np[k]).join(' ');
@@ -986,13 +897,13 @@ function renderUsuarios() {
     const esUltimoAdmin = u.permisos.ajustes && admins.length === 1;
     return `<div class="usuario-row">
       <div class="info">
-        <div class="nombre">${u.nombre || user} ${soyYo ? '<span class="small">(tú)</span>' : ''}</div>
+        <div class="nombre">${u.nombre || user} ${soyYo ? '(tú)' : ''}</div>
         <div class="small" style="font-family:monospace;">@${user}</div>
-        ${u.email ? '<div class="small">📧 ' + u.email + '</div>' : '<div class="small" style="color:#c0392b;">⚠️ Sin correo</div>'}
-        <div class="permisos">Pestañas: ${chips || '—'}</div>
+        ${u.email ? '<div class="small">📧 ' + u.email + '</div>' : ''}
+        <div class="permisos">${chips || '—'}</div>
       </div>
       <div class="acciones">
-        <button onclick="abrirModalUsuario('${user}')">✏️ Editar</button>
+        <button onclick="abrirModalUsuario('${user}')">✏️</button>
         ${!soyYo ? `<button class="rojo" onclick="eliminarUsuario('${user}')" ${esUltimoAdmin ? 'disabled' : ''}>🗑</button>` : ''}
       </div>
     </div>`;
@@ -1000,11 +911,11 @@ function renderUsuarios() {
 }
 function abrirModalUsuario(username) {
   modoEdicionUsuario = username || null;
-  const inpUsuario = document.getElementById('userUsuario');
-  const inpNombre = document.getElementById('userNombre');
-  const inpEmail = document.getElementById('userEmail');
-  const inpPass = document.getElementById('userPassword');
-  const labelPass = document.getElementById('labelUserPassword');
+  const inpU = document.getElementById('userUsuario');
+  const inpN = document.getElementById('userNombre');
+  const inpE = document.getElementById('userEmail');
+  const inpP = document.getElementById('userPassword');
+  const lblP = document.getElementById('labelUserPassword');
   const perm = {
     pedido: document.getElementById('permPedido'),
     inventario: document.getElementById('permInventario'),
@@ -1013,28 +924,28 @@ function abrirModalUsuario(username) {
   };
   if (username) {
     const u = usuarios[username];
-    document.getElementById('modalUsuarioTitulo').textContent = '✏️ Editar usuario';
-    inpUsuario.value = username; inpUsuario.disabled = true;
-    inpNombre.value = u.nombre || '';
-    inpEmail.value = u.email || '';
-    inpPass.value = '';
-    labelPass.textContent = 'Nueva contraseña (dejar vacío para no cambiar)';
+    document.getElementById('modalUsuarioTitulo').textContent = '✏️ Editar';
+    inpU.value = username; inpU.disabled = true;
+    inpN.value = u.nombre || '';
+    inpE.value = u.email || '';
+    inpP.value = '';
+    lblP.textContent = 'Nueva contraseña (vacío = no cambiar)';
     perm.pedido.checked = !!u.permisos.pedido;
     perm.inventario.checked = !!u.permisos.inventario;
     perm.vincular.checked = !!u.permisos.vincular;
     perm.ajustes.checked = !!u.permisos.ajustes;
   } else {
-    document.getElementById('modalUsuarioTitulo').textContent = '➕ Agregar usuario';
-    inpUsuario.value = ''; inpUsuario.disabled = false;
-    inpNombre.value = ''; inpEmail.value = ''; inpPass.value = '';
-    labelPass.textContent = 'Contraseña';
+    document.getElementById('modalUsuarioTitulo').textContent = '➕ Agregar';
+    inpU.value = ''; inpU.disabled = false;
+    inpN.value = ''; inpE.value = ''; inpP.value = '';
+    lblP.textContent = 'Contraseña';
     perm.pedido.checked = true;
     perm.inventario.checked = false;
     perm.vincular.checked = false;
     perm.ajustes.checked = false;
   }
   document.getElementById('modalUsuario').classList.add('activo');
-  setTimeout(() => inpNombre.focus(), 100);
+  setTimeout(() => inpN.focus(), 100);
 }
 function cerrarModalUsuario() {
   document.getElementById('modalUsuario').classList.remove('activo');
@@ -1051,20 +962,15 @@ function guardarUsuario() {
     vincular: document.getElementById('permVincular').checked,
     ajustes: document.getElementById('permAjustes').checked
   };
-  if (!nombre) { alert('Pon un nombre.'); return; }
-  if (!username || !/^[a-z0-9._-]{3,20}$/.test(username)) {
-    alert('Usuario inválido. Minúsculas, números, . _ - (mínimo 3).'); return;
-  }
+  if (!nombre) { alert('Pon nombre.'); return; }
+  if (!username || !/^[a-z0-9._-]{3,20}$/.test(username)) { alert('Usuario inválido.'); return; }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Correo inválido.'); return; }
-  if (!Object.values(permisos).some(v => v)) { alert('Marca al menos una pestaña.'); return; }
+  if (!Object.values(permisos).some(v => v)) { alert('Marca al menos 1.'); return; }
   const esEdicion = !!modoEdicionUsuario;
   if (!esEdicion) {
     if (usuarios[username]) { alert('Ya existe.'); return; }
-    if (password.length < 4) { alert('Mínimo 4 caracteres.'); return; }
-    usuarios[username] = {
-      nombre, email, hash: hashPassword(password), permisos,
-      creado: new Date().toISOString(), primerLogin: false
-    };
+    if (password.length < 4) { alert('Mínimo 4.'); return; }
+    usuarios[username] = { nombre, email, hash: hashPassword(password), permisos, creado: new Date().toISOString(), primerLogin: false };
   } else {
     const u = usuarios[modoEdicionUsuario];
     u.nombre = nombre; u.email = email; u.permisos = permisos;
@@ -1082,10 +988,8 @@ function eliminarUsuario(username) {
   delete usuarios[username];
   guardarUsuarios();
   renderUsuarios();
-  toast('🗑 Eliminado');
+  toast('🗑');
 }
-
-/* ============ CAMBIAR MI CONTRASEÑA ============ */
 function abrirModalCambiarMiPassword() {
   document.getElementById('mpActual').value = '';
   document.getElementById('mpNueva').value = '';
@@ -1097,23 +1001,20 @@ function cambiarMiPassword() {
   const nueva = document.getElementById('mpNueva').value;
   const confirmar = document.getElementById('mpConfirmar').value;
   const u = usuarios[usuarioLogueado];
-  if (hashPassword(actual) !== u.hash) { alert('Contraseña actual incorrecta.'); return; }
+  if (hashPassword(actual) !== u.hash) { alert('Actual incorrecta.'); return; }
   if (nueva.length < 4) { alert('Mínimo 4.'); return; }
   if (nueva !== confirmar) { alert('No coinciden.'); return; }
   u.hash = hashPassword(nueva); u.primerLogin = false;
   guardarUsuarios();
   document.getElementById('modalMiPassword').classList.remove('activo');
-  toast('✔ Contraseña actualizada');
+  toast('✔ Actualizada');
 }
 
 /* ============ RESPALDO ============ */
 function exportarRespaldo() {
-  const data = {
-    version: 4, exportado: new Date().toISOString(),
-    productos, pedido, vinculos, usuarios, configEmailJS,
-    inventarioBase, inventarioConteo,
-    tienda: document.getElementById('tienda').value
-  };
+  const data = { version: 5, exportado: new Date().toISOString(),
+    productos, pedido, vinculos, usuarios, configEmailJS, inventarioConteo,
+    tienda: document.getElementById('tienda').value };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1121,7 +1022,7 @@ function exportarRespaldo() {
   a.download = `respaldo_sahagun_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  toast('📤 Respaldo descargado');
+  toast('📤');
 }
 function importarRespaldo(event) {
   const file = event.target.files[0];
@@ -1131,20 +1032,18 @@ function importarRespaldo(event) {
   reader.onload = e => {
     try {
       const data = JSON.parse(e.target.result);
-      if (!confirm('⚠️ Esto reemplazará TODO. ¿Continuar?')) return;
+      if (!confirm('⚠️ Reemplazará TODO. ¿Continuar?')) return;
       if (data.productos) productos = data.productos;
       if (data.pedido) pedido = data.pedido;
       if (data.vinculos) vinculos = data.vinculos;
       if (data.usuarios) { usuarios = data.usuarios; guardarUsuarios(); }
       if (data.configEmailJS) { configEmailJS = data.configEmailJS; localStorage.setItem(KEY_CFG, JSON.stringify(configEmailJS)); }
-      if (data.inventarioBase) inventarioBase = data.inventarioBase;
       if (data.inventarioConteo) inventarioConteo = data.inventarioConteo;
       if (data.tienda) document.getElementById('tienda').value = data.tienda;
-      guardarEstado();
-      guardarInventarioBase();
-      renderPedido(); renderVinculos(); renderUsuarios(); renderInventario();
+      guardarEstado(); guardarInventarioBase();
+      renderPedido(); renderVinculos(); renderUsuarios(); renderInvTopStats(); renderInventario();
       actualizarEstadoEmailJS();
-      toast('✔ Restaurado');
+      toast('✔');
     } catch (err) { alert('Error: ' + err.message); }
   };
   reader.readAsText(file);
@@ -1182,7 +1081,7 @@ function toast(msg, tipo) {
   t.classList.toggle('error', tipo === 'error');
   t.classList.add('show');
   clearTimeout(window._toastT);
-  window._toastT = setTimeout(() => t.classList.remove('show'), 2400);
+  window._toastT = setTimeout(() => t.classList.remove('show'), 2200);
 }
 function codigoDeSku(sku) {
   const s = sku.toUpperCase();
@@ -1197,7 +1096,7 @@ function guardarEstado() {
     localStorage.setItem(KEY_STATE, JSON.stringify({
       productos, pedido, vinculos,
       tienda: document.getElementById('tienda').value,
-      modo, fecha: new Date().toISOString()
+      fecha: new Date().toISOString()
     }));
     localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
   } catch(e) {}
@@ -1210,16 +1109,15 @@ function cargarEstado() {
       if (Array.isArray(obj.productos)) {
         productos = obj.productos;
         if (productos.length) {
-          const fechaStr = obj.fecha ? new Date(obj.fecha).toLocaleString('es-MX') : '';
-          document.getElementById('infoCat').innerHTML = `✔ <b>${productos.length}</b> productos restaurados <span class="small">(${fechaStr})</span>`;
+          const f = obj.fecha ? new Date(obj.fecha).toLocaleString('es-MX') : '';
+          document.getElementById('infoCat').innerHTML = `✔ <b>${productos.length}</b> productos <span class="small">(${f})</span>`;
           document.getElementById('avisoGuardado').style.display = 'block';
           document.getElementById('btnOlvidarWrap').style.display = 'block';
         }
       }
       if (Array.isArray(obj.pedido)) pedido = obj.pedido;
-      if (obj.vinculos && typeof obj.vinculos === 'object') vinculos = obj.vinculos;
+      if (obj.vinculos) vinculos = obj.vinculos;
       if (typeof obj.tienda === 'string') document.getElementById('tienda').value = obj.tienda;
-      if (obj.modo === 'inventario') modo = 'inventario';
     } else {
       const mapRaw = localStorage.getItem(KEY_MAP);
       if (mapRaw) vinculos = JSON.parse(mapRaw);
@@ -1227,6 +1125,8 @@ function cargarEstado() {
   } catch(e) {}
   renderPedido();
   renderVinculos();
+  renderInvTopStats();
+  renderInventario();
 }
 function olvidarCatalogo() {
   if (!confirm('¿Olvidar catálogo?')) return;
@@ -1236,6 +1136,7 @@ function olvidarCatalogo() {
   document.getElementById('avisoGuardado').style.display = 'none';
   document.getElementById('btnOlvidarWrap').style.display = 'none';
   guardarEstado();
+  renderInvTopStats();
 }
 
 /* ============ PDF ============ */
@@ -1282,12 +1183,13 @@ async function procesarPDF(event) {
     }
     loader.style.display = 'none';
     info.innerHTML = `✔ <b>${productos.length}</b> productos · ${totalPaginas} páginas`;
-    diag.textContent = `Diagnóstico: ${lineasTotales} líneas · ${lineasSinSKU} sin SKU · ${lineasSinPrecio} sin precio · ${paginasConError} errores`;
+    diag.textContent = `${lineasTotales} líneas · ${lineasSinSKU} sin SKU · ${lineasSinPrecio} sin precio · ${paginasConError} errores`;
     if (!productos.length) alert('No se detectaron productos.');
     else {
       guardarEstado();
       document.getElementById('avisoGuardado').style.display = 'block';
       document.getElementById('btnOlvidarWrap').style.display = 'block';
+      renderInvTopStats();
     }
   } catch (err) {
     loader.style.display = 'none';
@@ -1320,144 +1222,61 @@ function parsearLinea(texto) {
   return 'ok';
 }
 
-/* ============ INVENTARIO ============ */
+/* ============ INVENTARIO (usa `productos`) ============ */
 function guardarInventarioBase() {
-  try {
-    localStorage.setItem(KEY_INV, JSON.stringify({
-      base: inventarioBase,
-      conteo: inventarioConteo,
-      fecha: new Date().toISOString()
-    }));
-  } catch(e) {}
+  try { localStorage.setItem(KEY_INV, JSON.stringify({ conteo: inventarioConteo, fecha: new Date().toISOString() })); } catch(e) {}
 }
 function cargarInventarioGuardado() {
   try {
     const raw = localStorage.getItem(KEY_INV);
     if (!raw) return;
     const obj = JSON.parse(raw);
-    if (Array.isArray(obj.base)) inventarioBase = obj.base;
-    if (obj.conteo && typeof obj.conteo === 'object') inventarioConteo = obj.conteo;
-    if (inventarioBase.length) {
-      document.getElementById('invInfo').innerHTML = `✔ <b>${inventarioBase.length}</b> productos del sistema · <b>${Object.keys(inventarioConteo).length}</b> contados`;
-      document.getElementById('invBtnOlvidarWrap').style.display = 'block';
-      document.getElementById('invPanelContar').style.display = 'block';
-      document.getElementById('invPanelResumen').style.display = 'block';
-      document.getElementById('invAcciones').style.display = 'flex';
-    }
+    if (obj.conteo) inventarioConteo = obj.conteo;
+    renderInvTopStats();
     renderInventario();
   } catch(e) {}
 }
-function olvidarInventario() {
-  if (!confirm('¿Olvidar inventario cargado y conteo?')) return;
-  inventarioBase = [];
-  inventarioConteo = {};
-  try { localStorage.removeItem(KEY_INV); } catch(e) {}
-  document.getElementById('invInfo').textContent = '';
-  document.getElementById('invBtnOlvidarWrap').style.display = 'none';
-  document.getElementById('invPanelContar').style.display = 'none';
-  document.getElementById('invPanelResumen').style.display = 'none';
-  document.getElementById('invAcciones').style.display = 'none';
-  document.getElementById('invResultados').innerHTML = '';
-  document.getElementById('invBusqueda').value = '';
-  toast('🗑 Inventario olvidado');
-}
-async function procesarInventario(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const info = document.getElementById('invInfo');
-  info.innerHTML = '⏳ Leyendo archivo…';
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const wb = XLSX.read(arrayBuffer, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
-
-    let headerIdx = -1;
-    for (let i = 0; i < rows.length; i++) {
-      const r = (rows[i] || []).map(x => String(x || '').toUpperCase().trim());
-      const tieneClave = r.some(h => h.includes('CLAVE') || h === 'SKU' || h.includes('CÓDIGO') || h.includes('CODIGO') || h.includes('REX'));
-      const tieneExis = r.some(h => h.includes('EXIS') || h.includes('EXIST') || h.includes('CANTIDAD') || h.includes('INV'));
-      if (tieneClave && tieneExis) { headerIdx = i; break; }
-    }
-    if (headerIdx < 0) {
-      alert('No se encontró la fila de encabezados. El archivo debe tener columnas como: Clave, Descripción, Precio U., Exis.');
-      info.innerHTML = '';
-      return;
-    }
-    const header = rows[headerIdx].map(x => String(x || '').toUpperCase().trim());
-    const findCol = (...keys) => {
-      for (let i = 0; i < header.length; i++) {
-        const h = header[i];
-        if (keys.some(k => h.includes(k))) return i;
-      }
-      return -1;
-    };
-    const idxSku = findCol('CLAVE', 'SKU', 'CODIGO', 'CÓDIGO', 'REX');
-    const idxDesc = findCol('DESCRIPCI');
-    const idxPrecio = findCol('PRECIO');
-    const idxExis = findCol('EXIS', 'EXIST', 'INV ACTUAL', 'CANTIDAD');
-
-    if (idxSku < 0 || idxExis < 0) {
-      alert('Falta la columna "Clave" o "Exis".');
-      info.innerHTML = '';
-      return;
-    }
-
-    inventarioBase = [];
-    for (let i = headerIdx + 1; i < rows.length; i++) {
-      const r = rows[i] || [];
-      const skuRaw = String(r[idxSku] || '').trim().toUpperCase();
-      if (!skuRaw) continue;
-      // Saltar filas tipo "Total" o encabezados duplicados
-      if (/^(TOTAL|SUBTOTAL|CLAVE|SKU)$/i.test(skuRaw)) continue;
-      const descripcion = idxDesc >= 0 ? String(r[idxDesc] || '').trim() : '';
-      const precioStr = idxPrecio >= 0 ? String(r[idxPrecio] || '') : '0';
-      const precio = parseFloat(precioStr.replace(/[^0-9.\-]/g, '')) || 0;
-      const exisStr = String(r[idxExis] || '0');
-      const exis = parseFloat(exisStr.replace(/[^0-9.\-]/g, '')) || 0;
-
-      inventarioBase.push({ sku: skuRaw, descripcion, precio, exis });
-    }
-
-    // Resetear conteo anterior
-    inventarioConteo = {};
-
-    guardarInventarioBase();
-    info.innerHTML = `✔ <b>${inventarioBase.length}</b> productos cargados · Columnas detectadas: SKU[${idxSku}] Desc[${idxDesc}] Precio[${idxPrecio}] Exis[${idxExis}]`;
-
-    document.getElementById('invBtnOlvidarWrap').style.display = 'block';
-    document.getElementById('invPanelContar').style.display = 'block';
-    document.getElementById('invPanelResumen').style.display = 'block';
-    document.getElementById('invAcciones').style.display = 'flex';
-
-    renderInventario();
-    toast(`✔ ${inventarioBase.length} productos cargados`);
-  } catch (err) {
-    console.error(err);
-    alert('Error al leer: ' + err.message);
-    info.innerHTML = '';
+function renderInvTopStats() {
+  const el = document.getElementById('invStatsTop');
+  const aviso = document.getElementById('invAvisoSinCatalogo');
+  if (!el) return;
+  if (!productos.length) {
+    el.innerHTML = '';
+    if (aviso) aviso.style.display = 'block';
+    document.getElementById('invAcciones').style.display = 'none';
+    document.getElementById('invPanelResumen').style.display = 'none';
+    return;
   }
+  if (aviso) aviso.style.display = 'none';
+  const total = productos.length;
+  const contados = Object.keys(inventarioConteo).length;
+  const pendientes = total - contados;
+  el.innerHTML = `
+    <div class="inv-stat"><div class="num">${total}</div><div class="lbl">Catálogo</div></div>
+    <div class="inv-stat ok"><div class="num">${contados}</div><div class="lbl">Contados</div></div>
+    <div class="inv-stat warn"><div class="num">${pendientes}</div><div class="lbl">Pendientes</div></div>`;
+  document.getElementById('invAcciones').style.display = contados ? 'flex' : 'none';
+  document.getElementById('invPanelResumen').style.display = contados ? 'block' : 'none';
 }
+
 function invBuscar() {
   const q = document.getElementById('invBusqueda').value.toLowerCase().trim();
   const cont = document.getElementById('invResultados');
   invIndiceSel = -1;
   if (!q) { cont.innerHTML = ''; invResultados = []; return; }
-  if (!inventarioBase.length) { cont.innerHTML = '<p class="small">Primero sube el archivo del sistema.</p>'; return; }
-  invResultados = inventarioBase.filter(p =>
-    p.sku.toLowerCase().includes(q) || (p.descripcion || '').toLowerCase().includes(q)
+  if (!productos.length) { cont.innerHTML = '<p class="small">Primero sube el PDF en Pedido.</p>'; return; }
+  invResultados = productos.filter(p =>
+    p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)
   ).slice(0, 30);
   if (!invResultados.length) { cont.innerHTML = '<p class="small">Sin resultados.</p>'; return; }
-  cont.innerHTML = '<table><thead><tr><th>SKU</th><th>Descripción</th><th>Exis</th><th></th></tr></thead><tbody>' +
+  cont.innerHTML = '<table><thead><tr><th>SKU</th><th>Descripción</th><th>Precio</th><th></th></tr></thead><tbody>' +
     invResultados.map((p, i) => {
       const contado = inventarioConteo[p.sku];
-      const chip = (contado !== undefined)
-        ? `<span class="chip-counted">✔ ${contado}</span>`
-        : `<span class="chip-pending">pendiente</span>`;
+      const chip = (contado !== undefined) ? `<span class="chip-counted">✔ ${contado}</span>` : `<span class="chip-pending">pendiente</span>`;
       return `<tr class="resultado" data-idx="${i}" onclick="invSeleccionar(${i})">
         <td>${p.sku}${chip}</td>
-        <td>${p.descripcion || ''}</td>
-        <td style="text-align:right; font-family:monospace;">${p.exis}</td>
+        <td>${p.descripcion}</td>
+        <td>$${p.precio.toFixed(2)}</td>
         <td style="text-align:center;">→</td>
       </tr>`;
     }).join('') + '</tbody></table>';
@@ -1476,16 +1295,11 @@ function invTeclaBusqueda(e) {
     e.preventDefault();
     const q = document.getElementById('invBusqueda').value.trim();
     if (!q) return;
-    // ¿Es un código vinculado?
     const c = q.toUpperCase();
     const skuVinculado = skuDeCodigo(c);
     let p = null;
-    if (skuVinculado) {
-      p = inventarioBase.find(x => x.sku.toUpperCase() === skuVinculado.toUpperCase());
-    }
-    if (!p) {
-      p = inventarioBase.find(x => x.sku.toUpperCase() === c);
-    }
+    if (skuVinculado) p = productos.find(x => x.sku.toUpperCase() === skuVinculado.toUpperCase());
+    if (!p) p = productos.find(x => x.sku.toUpperCase() === c);
     if (p) {
       document.getElementById('invBusqueda').value = '';
       document.getElementById('invResultados').innerHTML = '';
@@ -1494,7 +1308,7 @@ function invTeclaBusqueda(e) {
       return;
     }
     if (invResultados.length && invIndiceSel >= 0) { invSeleccionar(invIndiceSel); return; }
-    toast('❌ No encontrado en inventario: ' + c, 'error');
+    toast('❌ No encontrado: ' + c, 'error');
     return;
   }
   if (!invResultados.length) return;
@@ -1512,11 +1326,8 @@ function abrirModalConteo(p) {
   const contado = inventarioConteo[p.sku];
   document.getElementById('conteoInfoProducto').innerHTML = `
     <div style="font-weight:bold; font-size:15px; color:#1a3a6b;">${p.sku}</div>
-    <div class="small" style="margin-top:4px;">${p.descripcion || ''}</div>`;
-  document.getElementById('conteoSistema').innerHTML = `
-    <div class="small" style="color:#666;">SISTEMA DICE</div>
-    <div style="font-size:32px; font-weight:bold; color:#1a3a6b;">${p.exis}</div>
-    ${contado !== undefined ? '<div class="small" style="margin-top:4px; color:#1e8449;">Ya contado antes: <b>' + contado + '</b></div>' : ''}
+    <div class="small" style="margin-top:4px;">${p.descripcion}</div>
+    ${contado !== undefined ? '<div class="small" style="margin-top:6px; color:#1e8449;">Ya contado antes: <b>' + contado + '</b></div>' : ''}
   `;
   const inp = document.getElementById('inputConteo');
   inp.value = contado !== undefined ? contado : '';
@@ -1533,123 +1344,78 @@ function confirmarConteo() {
   const cant = Math.max(0, parseInt(document.getElementById('inputConteo').value) || 0);
   inventarioConteo[invProductoActual.sku] = cant;
   guardarInventarioBase();
+  renderInvTopStats();
   renderInventario();
   toast(`✔ ${invProductoActual.sku} = ${cant}`);
   cerrarModalConteo();
 }
 function renderInventario() {
-  if (!inventarioBase.length) return;
-
-  const totalProductos = inventarioBase.length;
-  const contados = Object.keys(inventarioConteo).length;
-  const pendientes = totalProductos - contados;
-
-  let totalDif = 0, totalDifMxn = 0;
-  let sobrantes = 0, faltantes = 0;
-  inventarioBase.forEach(p => {
-    const c = inventarioConteo[p.sku];
-    if (c === undefined) return;
-    const d = c - p.exis;
-    if (d > 0) sobrantes++;
-    else if (d < 0) faltantes++;
-    totalDif += d;
-    totalDifMxn += d * (p.precio || 0);
-  });
-
-  const stats = document.getElementById('invStats');
-  stats.innerHTML = `
-    <div class="inv-stat"><div class="num">${totalProductos}</div><div class="lbl">Productos</div></div>
-    <div class="inv-stat ok"><div class="num">${contados}</div><div class="lbl">Contados</div></div>
-    <div class="inv-stat warn"><div class="num">${pendientes}</div><div class="lbl">Pendientes</div></div>
-    <div class="inv-stat ${sobrantes ? 'ok' : ''}"><div class="num">${sobrantes}</div><div class="lbl">Sobrantes</div></div>
-    <div class="inv-stat ${faltantes ? 'err' : ''}"><div class="num">${faltantes}</div><div class="lbl">Faltantes</div></div>
-    <div class="inv-stat ${totalDifMxn > 0 ? 'ok' : (totalDifMxn < 0 ? 'err' : '')}">
-      <div class="num">$${totalDifMxn.toFixed(2)}</div><div class="lbl">Dif. $</div>
-    </div>`;
-
-  const filtro = (document.getElementById('invFiltro').value || '').toLowerCase().trim();
   const tb = document.querySelector('#tablaInventario tbody');
-
-  // Solo mostramos productos CONTADOS (los pendientes se ven al buscar)
-  const rows = inventarioBase
+  if (!tb) return;
+  const filtro = (document.getElementById('invFiltro').value || '').toLowerCase().trim();
+  const rows = productos
     .filter(p => inventarioConteo[p.sku] !== undefined)
-    .filter(p => !filtro || p.sku.toLowerCase().includes(filtro) || (p.descripcion || '').toLowerCase().includes(filtro));
+    .filter(p => !filtro || p.sku.toLowerCase().includes(filtro) || p.descripcion.toLowerCase().includes(filtro));
 
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="6" class="small" style="text-align:center; padding:20px;">Aún no hay productos contados</td></tr>';
+    tb.innerHTML = '<tr><td colspan="5" class="small" style="text-align:center; padding:20px;">Sin productos contados</td></tr>';
     return;
   }
-
   tb.innerHTML = rows.map(p => {
     const c = inventarioConteo[p.sku];
-    const d = c - p.exis;
-    const difMxn = d * (p.precio || 0);
-    const claseRow = d > 0 ? 'sobrante' : (d < 0 ? 'faltante' : 'ok-row');
-    const claseDif = d > 0 ? 'dif-pos' : (d < 0 ? 'dif-neg' : 'dif-cero');
-    const signo = d > 0 ? '+' : '';
-    return `<tr class="${claseRow}">
+    const total = c * (p.precio || 0);
+    return `<tr class="ok-row">
       <td style="font-family:monospace;">${p.sku}</td>
-      <td class="small">${p.descripcion || ''}</td>
-      <td style="text-align:right; font-family:monospace;">${p.exis}</td>
+      <td class="small">${p.descripcion}</td>
       <td style="text-align:right; font-family:monospace; font-weight:bold;">${c}</td>
-      <td style="text-align:right;" class="${claseDif}">${signo}${d}</td>
-      <td style="text-align:right;" class="${claseDif}">${signo}$${difMxn.toFixed(2)}</td>
+      <td style="text-align:right;">$${(p.precio || 0).toFixed(2)}</td>
+      <td style="text-align:right;">$${total.toFixed(2)}</td>
     </tr>`;
   }).join('');
 }
 function limpiarConteo() {
-  if (!Object.keys(inventarioConteo).length) { alert('No hay conteo que limpiar.'); return; }
-  if (!confirm('¿Borrar TODO el conteo? (Los productos del sistema se mantienen)')) return;
+  if (!Object.keys(inventarioConteo).length) { alert('No hay conteo.'); return; }
+  if (!confirm('¿Borrar TODO el conteo?')) return;
   inventarioConteo = {};
   guardarInventarioBase();
+  renderInvTopStats();
   renderInventario();
-  toast('🗑 Conteo borrado');
+  toast('🗑');
 }
 function exportarInventario() {
-  if (!inventarioBase.length) { alert('Primero carga el archivo del sistema.'); return; }
-  const contados = Object.keys(inventarioConteo).length;
-  if (!contados) { alert('Aún no has contado ningún producto.'); return; }
-
+  if (!Object.keys(inventarioConteo).length) { alert('No has contado nada.'); return; }
   const aoa = [];
   aoa.push(['Reporte de Inventario Físico']);
   aoa.push(['Tienda', document.getElementById('tienda').value || 'SAHAGUN']);
   aoa.push(['Fecha', new Date().toLocaleString('es-MX')]);
   aoa.push(['Usuario', usuarioLogueado || '']);
   aoa.push([]);
-  aoa.push(['Clave', 'Descripción', 'Exis (Sistema)', 'Contado (Físico)', 'Diferencia', 'Precio U.', 'Dif $']);
-
-  let totalDifMxn = 0;
-  inventarioBase
+  aoa.push(['Clave', 'Descripción', 'Contado', 'Precio U.', 'Total']);
+  let totalGlobal = 0;
+  productos
     .filter(p => inventarioConteo[p.sku] !== undefined)
     .forEach(p => {
       const c = inventarioConteo[p.sku];
-      const d = c - p.exis;
-      const difMxn = d * (p.precio || 0);
-      totalDifMxn += difMxn;
-      aoa.push([p.sku, p.descripcion || '', p.exis, c, d, p.precio || 0, difMxn]);
+      const t = c * (p.precio || 0);
+      totalGlobal += t;
+      aoa.push([p.sku, p.descripcion, c, p.precio || 0, t]);
     });
-
   aoa.push([]);
-  aoa.push(['', '', '', '', 'TOTAL DIFERENCIA $', '', totalDifMxn]);
-
+  aoa.push(['', '', '', 'TOTAL', totalGlobal]);
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [
-    { wch: 18 }, { wch: 45 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }
-  ];
+  ws['!cols'] = [{ wch: 18 }, { wch: 45 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
   const tienda = document.getElementById('tienda').value || 'SAHAGUN';
   const fecha = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `inventario_${tienda}_${fecha}.xlsx`);
-  toast('📥 Reporte descargado');
+  toast('📥 Descargado');
 }
 
 /* ============ CÁMARA ============ */
 function abrirCamara(origen) {
-  if (origen !== 'vincular' && !productos.length && !inventarioBase.length) {
-    alert('Primero sube un catálogo (PDF) o inventario (Excel).');
-    return;
-  }
+  if (origen === 'buscar' && !productos.length) { alert('Sube el PDF primero.'); return; }
+  if (origen === 'inventario' && !productos.length) { alert('Sube el PDF primero.'); return; }
   camaraOrigen = origen;
   document.getElementById('modalCamara').classList.add('activo');
   html5QrCode = new Html5Qrcode("reader");
@@ -1659,7 +1425,7 @@ function abrirCamara(origen) {
     (decodedText) => { onCamaraDetecta(decodedText); },
     () => {}
   ).catch(err => {
-    alert('No se pudo abrir la cámara: ' + err + '\n\nRequiere HTTPS.');
+    alert('No se pudo abrir cámara: ' + err);
     cerrarCamara();
   });
 }
@@ -1685,13 +1451,12 @@ function onCamaraDetecta(codigo) {
   }, 200);
 }
 function procesarCodigoInventario(codigo) {
-  const c = String(codigo).toUpperCase().trim();
-  const skuVinculado = skuDeCodigo(c);
+  const skuVinculado = skuDeCodigo(codigo);
   let p = null;
-  if (skuVinculado) p = inventarioBase.find(x => x.sku.toUpperCase() === skuVinculado.toUpperCase());
-  if (!p) p = inventarioBase.find(x => x.sku.toUpperCase() === c);
+  if (skuVinculado) p = productos.find(x => x.sku.toUpperCase() === skuVinculado.toUpperCase());
+  if (!p) p = productos.find(x => x.sku.toUpperCase() === codigo);
   if (p) { abrirModalConteo(p); return; }
-  toast('❌ No está en el inventario: ' + c, 'error');
+  toast('❌ No está en catálogo: ' + codigo, 'error');
 }
 
 /* ============ PEDIDO ============ */
@@ -1701,7 +1466,7 @@ function procesarCodigoEnPedido(codigo) {
   if (skuVinculado) {
     const p = productos.find(x => x.sku.toUpperCase() === skuVinculado.toUpperCase());
     if (p) { abrirModalCantidad(p); return; }
-    toast('⚠️ SKU vinculado no está en catálogo', 'error');
+    toast('⚠️ SKU vinculado no en catálogo', 'error');
     return;
   }
   const p = productos.find(x => x.sku.toUpperCase() === c);
@@ -1726,7 +1491,7 @@ function cerrarVincularRapido() {
 function buscarVincularRapido() {
   const q = document.getElementById('busquedaRapida').value.toLowerCase().trim();
   const cont = document.getElementById('resultadosRapido');
-  if (!productos.length) { cont.innerHTML = '<p class="small">⚠️ Sin catálogo.</p>'; return; }
+  if (!productos.length) { cont.innerHTML = '<p class="small">Sin catálogo.</p>'; return; }
   const res = q
     ? productos.filter(p => p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)).slice(0, 30)
     : productos.slice(0, 30);
@@ -1737,16 +1502,15 @@ function buscarVincularRapido() {
       let celda, claseRow = '';
       if (!codActual) {
         celda = `<button class="verde" style="padding:6px 10px; font-size:12px;"
-                  onclick="asignarVincularRapido('${p.sku}')">🔗 Asignar</button>`;
+                  onclick="asignarVincularRapido('${p.sku}')">🔗</button>`;
       } else if (codActual === codigoRapidoPendiente) {
         claseRow = 'ya-vinculado';
-        celda = `<div class="estado-ok">✔ Ya asignado</div>`;
+        celda = `<div class="estado-ok">✔</div>`;
       } else {
         claseRow = 'ya-vinculado';
-        celda = `<div class="estado-warn">⚠️ Ya tiene:</div>
-                 <div class="chip-codigo">${codActual}</div>
-                 <button class="amarillo" style="padding:4px 8px; font-size:11px; margin-top:4px;"
-                  onclick="asignarVincularRapido('${p.sku}', true)">🔄 Reemplazar</button>`;
+        celda = `<div class="chip-codigo">${codActual}</div>
+                 <button class="amarillo" style="padding:4px 8px; font-size:11px;"
+                  onclick="asignarVincularRapido('${p.sku}', true)">🔄</button>`;
       }
       return `<tr class="resultado ${claseRow}"><td>${p.sku}</td><td>${p.descripcion}</td>
         <td style="text-align:center;">${celda}</td></tr>`;
@@ -1755,10 +1519,7 @@ function buscarVincularRapido() {
 function asignarVincularRapido(sku, esReemplazo) {
   if (!codigoRapidoPendiente) return;
   const codigo = codigoRapidoPendiente;
-  if (esReemplazo) {
-    const codViejo = codigoDeSku(sku);
-    if (codViejo) delete vinculos[codViejo];
-  }
+  if (esReemplazo) { const cv = codigoDeSku(sku); if (cv) delete vinculos[cv]; }
   if (vinculos[codigo]) delete vinculos[codigo];
   vinculos[codigo] = sku;
   localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
@@ -1770,8 +1531,8 @@ function asignarVincularRapido(sku, esReemplazo) {
     `<div style="opacity:.8; font-size:13px; margin-bottom:8px;">CÓDIGO</div>
      <div style="font-size:18px; margin-bottom:12px;">${codigo}</div>
      <div style="opacity:.8; font-size:13px; margin-bottom:8px;">ASIGNADO A</div>
-     <div style="font-size:18px; font-weight:bold; margin-bottom:6px;">${sku}</div>
-     ${prod ? '<div style="font-size:13px; opacity:.9;">' + prod.descripcion + '</div>' : ''}`;
+     <div style="font-size:18px; font-weight:bold;">${sku}</div>
+     ${prod ? '<div style="font-size:13px; opacity:.9; margin-top:6px;">' + prod.descripcion + '</div>' : ''}`;
   document.getElementById('exitoFullscreen').classList.add('show');
   setTimeout(() => {
     document.getElementById('exitoFullscreen').classList.remove('show');
@@ -1785,7 +1546,7 @@ function buscar() {
   const cont = document.getElementById('resultados');
   indiceSel = -1;
   if (!q) { cont.innerHTML = ''; resultadosActuales = []; return; }
-  if (!productos.length) { cont.innerHTML = '<p class="small">Primero sube el PDF.</p>'; return; }
+  if (!productos.length) { cont.innerHTML = '<p class="small">Sube el PDF.</p>'; return; }
   resultadosActuales = productos.filter(p =>
     p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)
   ).slice(0, 30);
@@ -1877,14 +1638,12 @@ function capturarCodigo() {
   if (skuExistente) {
     const prod = productos.find(p => p.sku.toUpperCase() === skuExistente.toUpperCase());
     document.getElementById('bannerCodigoYaVinculadoTexto').innerHTML = `
-      <div style="margin-bottom:8px;">
-        El código <b style="font-family:monospace;">${codigo}</b> ya está asignado a:
-      </div>
+      <div style="margin-bottom:8px;">El código <b style="font-family:monospace;">${codigo}</b> ya está asignado a:</div>
       <div style="background:white; padding:10px; border-radius:6px; font-family:monospace;">
         <div style="font-size:16px; font-weight:bold; color:#1a3a6b;">${skuExistente}</div>
-        ${prod ? '<div style="font-size:12px; color:#555; margin-top:4px;">' + prod.descripcion + '</div>' : ''}
+        ${prod ? '<div style="font-size:12px; color:#555;">' + prod.descripcion + '</div>' : ''}
       </div>
-      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+      <div style="margin-top:10px; display:flex; gap:8px;">
         <button class="amarillo" style="font-size:13px; padding:8px 14px;"
                 onclick="forzarReasignar('${codigo}')">🔄 Reasignar</button>
         <button class="gris" style="font-size:13px; padding:8px 14px;"
@@ -1924,7 +1683,7 @@ function limpiarInputCodigo() {
 function buscarParaVincular() {
   const q = document.getElementById('busquedaSku').value.toLowerCase().trim();
   const cont = document.getElementById('resultadosSku');
-  if (!productos.length) { cont.innerHTML = '<p class="small">⚠️ Sin catálogo.</p>'; return; }
+  if (!productos.length) { cont.innerHTML = '<p class="small">Sin catálogo.</p>'; return; }
   const res = q
     ? productos.filter(p => p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)).slice(0, 30)
     : productos.slice(0, 30);
@@ -1939,13 +1698,12 @@ function buscarParaVincular() {
       } else if (codActual === codigoPendiente) {
         claseRow = 'ya-vinculado';
         celda = `<div class="estado-ok">✔ Ya asignado</div>
-                 <button class="gris" style="padding:4px 8px; font-size:11px; margin-top:4px;"
+                 <button class="gris" style="padding:4px 8px; font-size:11px;"
                   onclick="quitarVinculoActual('${codigoPendiente}')">Quitar</button>`;
       } else {
         claseRow = 'ya-vinculado';
-        celda = `<div class="estado-warn">⚠️ Ya tiene:</div>
-                 <div class="chip-codigo">${codActual}</div>
-                 <button class="amarillo" style="padding:4px 8px; font-size:11px; margin-top:4px;"
+        celda = `<div class="chip-codigo">${codActual}</div>
+                 <button class="amarillo" style="padding:4px 8px; font-size:11px;"
                   onclick="guardarVinculo('${p.sku}', true)">🔄 Reemplazar</button>`;
       }
       return `<tr class="resultado ${claseRow}"><td>${p.sku}</td><td>${p.descripcion}</td>
@@ -1953,22 +1711,19 @@ function buscarParaVincular() {
     }).join('') + '</tbody></table>';
 }
 function quitarVinculoActual(codigo) {
-  if (!confirm(`¿Quitar vínculo?`)) return;
+  if (!confirm('¿Quitar?')) return;
   delete vinculos[codigo];
   localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
   guardarEstado();
   renderVinculos();
   buscarParaVincular();
-  toast('✔ Eliminado');
+  toast('✔');
 }
 function guardarVinculo(sku, esReemplazo) {
   if (!codigoPendiente) return;
   const codigo = codigoPendiente;
   if (vinculos[codigo]) delete vinculos[codigo];
-  if (esReemplazo) {
-    const codViejo = codigoDeSku(sku);
-    if (codViejo) delete vinculos[codViejo];
-  }
+  if (esReemplazo) { const cv = codigoDeSku(sku); if (cv) delete vinculos[cv]; }
   vinculos[codigo] = sku;
   localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
   guardarEstado();
@@ -1978,8 +1733,8 @@ function guardarVinculo(sku, esReemplazo) {
     `<div style="opacity:.8; font-size:13px; margin-bottom:8px;">CÓDIGO</div>
      <div style="font-size:18px; margin-bottom:12px;">${codigo}</div>
      <div style="opacity:.8; font-size:13px; margin-bottom:8px;">ASIGNADO A</div>
-     <div style="font-size:18px; font-weight:bold; margin-bottom:6px;">${sku}</div>
-     ${prod ? '<div style="font-size:13px; opacity:.9;">' + prod.descripcion + '</div>' : ''}`;
+     <div style="font-size:18px; font-weight:bold;">${sku}</div>
+     ${prod ? '<div style="font-size:13px; opacity:.9; margin-top:6px;">' + prod.descripcion + '</div>' : ''}`;
   document.getElementById('exitoFullscreen').classList.add('show');
   setTimeout(() => {
     document.getElementById('exitoFullscreen').classList.remove('show');
@@ -2007,22 +1762,22 @@ function renderVinculos() {
   }
   tb.innerHTML = entries.map(([cod, sku]) => {
     const prod = productos.find(p => p.sku.toUpperCase() === sku.toUpperCase());
-    const desc = prod ? prod.descripcion : '⚠️ (no en catálogo)';
+    const desc = prod ? prod.descripcion : '⚠️';
     return `<tr><td style="font-family:monospace;">${cod}</td><td>${sku}</td>
       <td class="small">${desc}</td>
       <td><button class="rojo" style="padding:6px 10px; font-size:12px;" onclick="borrarVinculo('${cod}')">X</button></td></tr>`;
   }).join('');
 }
 function borrarVinculo(codigo) {
-  if (!confirm(`¿Borrar vínculo?`)) return;
+  if (!confirm('¿Borrar?')) return;
   delete vinculos[codigo];
   localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
   guardarEstado();
   renderVinculos();
 }
 function exportarVinculos() {
-  if (!Object.keys(vinculos).length) { alert('No hay vínculos.'); return; }
-  const data = { version: 1, exportado: new Date().toISOString(), total: Object.keys(vinculos).length, vinculos };
+  if (!Object.keys(vinculos).length) { alert('Sin vínculos.'); return; }
+  const data = { version: 1, exportado: new Date().toISOString(), vinculos };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2030,7 +1785,7 @@ function exportarVinculos() {
   a.download = `vinculos_sahagun_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  toast('📤 Descargado');
+  toast('📤');
 }
 function importarVinculos(event) {
   const file = event.target.files[0];
@@ -2041,14 +1796,13 @@ function importarVinculos(event) {
     try {
       const data = JSON.parse(e.target.result);
       const nuevos = data.vinculos || data;
-      if (!nuevos || typeof nuevos !== 'object') throw new Error('Inválido');
       const total = Object.keys(nuevos).length;
       const fusionar = confirm(`${total} vínculos.\n\n• Aceptar = FUSIONAR\n• Cancelar = REEMPLAZAR`);
-      if (fusionar) { vinculos = { ...vinculos, ...nuevos }; toast(`✔ ${total} fusionados`); }
-      else { vinculos = { ...nuevos }; toast(`✔ ${total} reemplazados`); }
+      vinculos = fusionar ? { ...vinculos, ...nuevos } : { ...nuevos };
       localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
       guardarEstado();
       renderVinculos();
+      toast(`✔ ${total}`);
     } catch (err) { alert('Error: ' + err.message); }
   };
   reader.readAsText(file);
@@ -2061,15 +1815,15 @@ function renderPedido() {
     <tr>
       <td>${p.sku}</td>
       <td>${p.descripcion}</td>
-      <td><input class="cant" type="number" min="1" value="${p.cantidad}" inputmode="numeric"
+      <td><input class="cant" type="number" min="1" value="${p.cantidad}"
                  onchange="cambiarCant(${i}, this.value)"></td>
       <td><span class="badge ${claseUM(p.um)}">${p.um}</span></td>
       <td><button class="rojo" onclick="eliminar(${i})" style="padding:6px 10px;">X</button></td>
     </tr>`).join('');
-  const totalCant = pedido.reduce((s, p) => s + p.cantidad, 0);
-  const totalImp = pedido.reduce((s, p) => s + p.precio * p.cantidad, 0);
-  document.getElementById('totalCant').textContent = totalCant;
-  document.getElementById('totalImp').textContent = '$' + totalImp.toFixed(2);
+  const tc = pedido.reduce((s, p) => s + p.cantidad, 0);
+  const ti = pedido.reduce((s, p) => s + p.precio * p.cantidad, 0);
+  document.getElementById('totalCant').textContent = tc;
+  document.getElementById('totalImp').textContent = '$' + ti.toFixed(2);
   document.getElementById('contador').textContent = pedido.length;
 }
 function cambiarCant(i, v) { pedido[i].cantidad = Math.max(1, parseInt(v) || 1); renderPedido(); guardarEstado(); }
@@ -2102,15 +1856,7 @@ function arrancar() {
   try {
     cargarConfig();
     inicializarUsuarios();
-    try {
-      const otpRaw = localStorage.getItem(KEY_OTP);
-      if (otpRaw) {
-        const o = JSON.parse(otpRaw);
-        if (o && o.expira > Date.now()) otpActual = o;
-        else localStorage.removeItem(KEY_OTP);
-      }
-    } catch(e) {}
-  } catch(e) { console.error('Init error:', e); }
+  } catch(e) { console.error('Init:', e); }
   const sesionUser = cargarSesion();
   if (sesionUser) {
     usuarioLogueado = sesionUser;
