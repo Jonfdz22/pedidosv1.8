@@ -53,7 +53,7 @@
            font-weight:bold; z-index:999; pointer-events:none; max-width:90%; text-align:center; font-size:14px;}
   .toast.show { opacity:1; }
   .toast.error { background:#c0392b; }
-  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100; display:none;
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1100; display:none;
               align-items:center; justify-content:center; padding:15px; overflow-y:auto;}
   .modal-bg.activo { display:flex;}
   .modal { background:white; border-radius:12px; padding:20px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto;
@@ -99,7 +99,7 @@
 
   .exito-fullscreen { position:fixed; inset:0; background:rgba(30,132,73,.97); color:white;
                       display:none; flex-direction:column; align-items:center; justify-content:center;
-                      z-index:600; padding:30px; text-align:center; }
+                      z-index:1200; padding:30px; text-align:center; }
   .exito-fullscreen.show { display:flex; animation:fadeIn .2s; }
   @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
   .exito-fullscreen .icono-grande { font-size:100px; line-height:1; margin-bottom:20px; animation:pop .4s ease-out; }
@@ -850,7 +850,6 @@ function borrarTodoUsuarios() {
 
 /* ============ ENTRAR A LA APP ============ */
 function entrarApp() {
-  // Cerrar TODOS los modales antes de entrar
   document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('activo'));
   document.getElementById('loginBg').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -1704,7 +1703,6 @@ function exportarExcel() {
 
 /* ============ ARRANQUE ============ */
 function arrancar() {
-  // Cerrar cualquier modal que haya quedado abierto de una sesión anterior
   document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('activo'));
   try {
     cargarConfig();
