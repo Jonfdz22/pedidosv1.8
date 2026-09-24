@@ -1,0 +1,1763 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Sahagún — Pedidos y Vínculos</title>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent;}
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+         margin: 0; background:#eef2f7; color:#222; padding-bottom:80px;}
+  header { background:#1a3a6b; color:white; padding:10px 14px; position:sticky; top:0; z-index:50;
+           display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+  header h1 { font-size:16px; margin:0; }
+  .tabs { display:flex; gap:4px; flex-wrap:wrap; }
+  .tab { background:rgba(255,255,255,.15); color:white; border:none; padding:8px 12px; border-radius:6px;
+         font-size:13px; font-weight:bold; cursor:pointer; }
+  .tab.activo { background:white; color:#1a3a6b; }
+  .usuario-info { display:flex; align-items:center; gap:8px; font-size:12px; }
+  .usuario-nombre { background:rgba(255,255,255,.15); padding:6px 10px; border-radius:6px; font-weight:bold; }
+  .btn-salir { background:rgba(255,255,255,.15); color:white; border:none; padding:6px 10px;
+               border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold; }
+  .btn-salir:hover { background:rgba(255,255,255,.25); }
+  .panel { background:white; margin:10px; padding:14px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,.08);}
+  h3 { margin:0 0 10px 0; color:#1a3a6b; font-size:15px;}
+  input, textarea, button, select { font-size:16px; padding:10px; box-sizing:border-box; font-family:inherit;}
+  input[type=text], input[type=number], input[type=password], input[type=email] { width:100%; border:1px solid #ccc; border-radius:6px;}
+  button { background:#1a5fbf; color:white; border:none; border-radius:6px; cursor:pointer; padding:10px 16px; font-weight:bold;}
+  button:active { opacity:.7; }
+  button:disabled { opacity:.5; cursor:not-allowed;}
+  button.rojo { background:#c0392b;} button.verde { background:#1e8449;}
+  button.gris { background:#7f8c8d;} button.amarillo { background:#e67e22;}
+  button.camara { background:#1e8449; padding:10px 14px; font-size:20px; }
+  .fila { display:flex; gap:8px; align-items:stretch; }
+  .fila input { flex:1; }
+  table { width:100%; border-collapse:collapse; background:white; margin-top:8px;}
+  th, td { border:1px solid #ddd; padding:6px 8px; text-align:left; font-size:13px;}
+  th { background:#1a5fbf; color:white; font-size:12px;}
+  tr.resultado:active, tr.resultado.sel { background:#dbe9ff; }
+  tr.resultado { cursor:pointer; }
+  tr.ya-vinculado { background:#e8f5e9 !important; }
+  tr.ya-vinculado:hover { background:#c8e6c9 !important; }
+  .cant { width:70px; text-align:center; font-weight:bold; }
+  .small { font-size:12px; color:#666;}
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold; color:white;}
+  .G { background:#2e86c1;} .QT { background:#8e44ad;} .C5 { background:#e67e22;} .PZ { background:#7f8c8d;}
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+           background:#1e8449; color:white; padding:10px 18px; border-radius:8px;
+           box-shadow:0 4px 12px rgba(0,0,0,.25); opacity:0; transition:opacity .25s;
+           font-weight:bold; z-index:999; pointer-events:none; max-width:90%; text-align:center; font-size:14px;}
+  .toast.show { opacity:1; }
+  .toast.error { background:#c0392b; }
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100; display:none;
+              align-items:center; justify-content:center; padding:15px; overflow-y:auto;}
+  .modal-bg.activo { display:flex;}
+  .modal { background:white; border-radius:12px; padding:20px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto;
+           position:relative;}
+  .modal h3 { margin-top:0;}
+  .cant-grande { font-size:28px; text-align:center; font-weight:bold; padding:12px; width:100%; }
+  #reader { width:100%; border-radius:10px; overflow:hidden; background:#000; min-height:220px;}
+  #reader video { width:100% !important; height:auto !important; }
+  .progreso { font-size:12px; color:#1a5fbf; font-weight:bold; margin-top:6px;}
+  .diag { font-size:11px; color:#888; margin-top:4px;}
+  .aviso-guardado { background:#fff8e1; color:#7a5a00; padding:6px 10px; border-radius:6px;
+                    font-size:12px; margin-top:8px; display:none;}
+  .info-vinculo { background:#e8f5e9; padding:12px; border-radius:8px; border-left:4px solid #1e8449;
+                  font-family:monospace; font-size:14px; margin:10px 0; word-break:break-all;}
+  .input-gigante { font-size:22px; font-weight:bold; text-align:center; padding:16px;
+                   background:#f9f9f9; border:2px dashed #1a5fbf; letter-spacing:1px;}
+  .input-gigante:focus { background:#fff; border-style:solid; outline:none;}
+  .tabla-scroll { max-height:400px; overflow-y:auto; border:1px solid #ddd; border-radius:6px; margin-top:8px;}
+  .tabla-scroll table { margin:0; }
+  .tabla-scroll th { position:sticky; top:0; z-index:2; }
+  .acciones-fijas { position:fixed; bottom:0; left:0; right:0; background:white; padding:10px;
+                    box-shadow:0 -2px 10px rgba(0,0,0,.1); display:flex; gap:8px; z-index:40;}
+  .acciones-fijas button { flex:1; padding:14px; font-size:15px;}
+  .ayuda { background:#e3f2fd; padding:10px 12px; border-radius:6px; font-size:13px; line-height:1.5;
+           border-left:4px solid #1a5fbf; margin:8px 0;}
+  .ayuda b { color:#1a3a6b;}
+  .paso { background:#f0f7ff; padding:12px; border-radius:8px; margin:10px 0; border:2px solid #1a5fbf;}
+  .paso-num { display:inline-block; background:#1a5fbf; color:white; width:24px; height:24px;
+              border-radius:50%; text-align:center; line-height:24px; font-weight:bold;
+              font-size:13px; margin-right:8px;}
+  .chip-codigo { display:inline-block; background:#1a5fbf; color:white; padding:3px 8px;
+                 border-radius:12px; font-size:11px; font-family:monospace; margin:2px 0;}
+  .estado-ok { color:#1e8449; font-weight:bold; font-size:12px; }
+  .estado-warn { color:#e67e22; font-weight:bold; font-size:12px; }
+
+  .banner { padding:14px 16px; border-radius:10px; margin:10px 0; font-size:14px; line-height:1.4; display:none; }
+  .banner.show { display:block; }
+  .banner-info { background:#e3f2fd; border-left:6px solid #1a5fbf; color:#1a3a6b;}
+  .banner-ok { background:#e8f5e9; border-left:6px solid #1e8449; color:#0d4d26;}
+  .banner-warn { background:#fff3e0; border-left:6px solid #e67e22; color:#7a3d00;}
+  .banner-titulo { font-weight:bold; font-size:15px; margin-bottom:6px; display:flex; align-items:center; gap:8px;}
+  .banner-icono { font-size:22px; }
+
+  .exito-fullscreen { position:fixed; inset:0; background:rgba(30,132,73,.97); color:white;
+                      display:none; flex-direction:column; align-items:center; justify-content:center;
+                      z-index:600; padding:30px; text-align:center; }
+  .exito-fullscreen.show { display:flex; animation:fadeIn .2s; }
+  @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+  .exito-fullscreen .icono-grande { font-size:100px; line-height:1; margin-bottom:20px; animation:pop .4s ease-out; }
+  @keyframes pop { 0%{transform:scale(0);} 80%{transform:scale(1.2);} 100%{transform:scale(1);} }
+  .exito-fullscreen .titulo { font-size:28px; font-weight:bold; margin-bottom:16px; }
+  .exito-fullscreen .detalle-grande { font-size:16px; line-height:1.6; background:rgba(0,0,0,.15);
+                                       padding:16px 20px; border-radius:10px; font-family:monospace;
+                                       max-width:90vw; word-break:break-all; }
+  .exito-fullscreen .pie { margin-top:24px; font-size:13px; opacity:.8; }
+
+  .login-bg { position:fixed; inset:0; background:linear-gradient(135deg,#1a3a6b 0%,#0f2444 100%);
+              display:flex; align-items:center; justify-content:center; padding:20px; z-index:1000; }
+  .login-card { background:white; border-radius:16px; padding:32px 24px; width:100%; max-width:380px;
+                box-shadow:0 20px 40px rgba(0,0,0,.3); }
+  .login-card .logo { text-align:center; font-size:48px; margin-bottom:8px; }
+  .login-card h1 { text-align:center; color:#1a3a6b; font-size:22px; margin:0 0 6px 0; }
+  .login-card .sub { text-align:center; color:#666; font-size:13px; margin-bottom:24px; }
+  .login-card label { display:block; font-size:13px; color:#444; font-weight:bold; margin-top:12px; margin-bottom:4px;}
+  .login-card input { font-size:16px; padding:12px; }
+  .login-card button { width:100%; margin-top:20px; padding:14px; font-size:16px; }
+  .login-error { background:#fee; color:#c0392b; padding:10px; border-radius:6px; font-size:13px;
+                 margin-top:12px; display:none; text-align:center; }
+  .login-error.show { display:block; }
+  .login-info { background:#e3f2fd; color:#1a3a6b; padding:10px; border-radius:6px; font-size:13px;
+                margin-top:12px; display:none; text-align:center; }
+  .login-info.show { display:block; }
+
+  .usuario-row { display:flex; align-items:center; justify-content:space-between; gap:8px;
+                 padding:10px; border:1px solid #ddd; border-radius:8px; margin-bottom:8px;
+                 background:#fafafa; flex-wrap:wrap; }
+  .usuario-row .info { flex:1; min-width:150px;}
+  .usuario-row .nombre { font-weight:bold; color:#1a3a6b; }
+  .usuario-row .permisos { font-size:11px; color:#666; margin-top:2px; }
+  .usuario-row .acciones { display:flex; gap:6px; }
+  .usuario-row button { padding:6px 10px; font-size:12px;}
+  .permiso-check { display:flex; align-items:center; gap:8px; padding:8px;
+                   background:#f5f5f5; border-radius:6px; margin:4px 0; cursor:pointer;}
+  .permiso-check input { width:auto; transform:scale(1.3); }
+  .permiso-check label { font-size:14px; cursor:pointer; flex:1;}
+
+  .otp-input { display:flex; gap:8px; justify-content:center; margin:16px 0; }
+  .otp-input input { width:48px; height:56px; text-align:center; font-size:24px; font-weight:bold;
+                     border:2px solid #ccc; border-radius:8px; padding:0; }
+  .otp-input input:focus { border-color:#1a5fbf; outline:none; background:#f0f7ff;}
+  .timer { text-align:center; color:#e67e22; font-weight:bold; font-size:14px; margin:8px 0;}
+
+  @media(min-width:700px){
+    body { max-width:900px; margin:0 auto; padding-bottom:20px;}
+    .acciones-fijas { position:static; margin:10px; box-shadow:0 2px 6px rgba(0,0,0,.08); border-radius:10px;}
+    header h1 { font-size:20px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================== LOGIN ================== -->
+<div class="login-bg" id="loginBg" style="display:none;">
+  <div class="login-card">
+    <div class="logo">🎨</div>
+    <h1>Sahagún</h1>
+    <div class="sub">Pedidos · Inventario · Vínculos</div>
+
+    <label for="loginUsuario">Usuario</label>
+    <input type="text" id="loginUsuario" autocomplete="username" placeholder="tu usuario">
+    <label for="loginPassword">Contraseña</label>
+    <input type="password" id="loginPassword" autocomplete="current-password" placeholder="••••••••"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();intentarLogin();}">
+    <button class="verde" onclick="intentarLogin()">🔓 Entrar</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-info" id="loginInfo"></div>
+    <button type="button" class="gris" style="width:100%; margin-top:10px; font-size:13px;"
+            onclick="abrirRecuperar()">🆘 Olvidé mi contraseña</button>
+    <p class="small" style="text-align:center; margin-top:20px;">
+      ¿Primera vez? Usuario <b>admin</b> / contraseña <b>admin123</b>
+    </p>
+  </div>
+</div>
+
+<!-- ================== APP ================== -->
+<div id="app" style="display:none;">
+
+<header>
+  <h1>📋 Sahagún</h1>
+  <div class="tabs">
+    <button class="tab" id="tabPedido" onclick="cambiarPestana('pedido')">🛒 Pedido</button>
+    <button class="tab" id="tabInventario" onclick="cambiarPestana('inventario')">📦 Inventario</button>
+    <button class="tab" id="tabVincular" onclick="cambiarPestana('vincular')">🔗 Vincular</button>
+    <button class="tab" id="tabAjustes" onclick="cambiarPestana('ajustes')">⚙️ Ajustes</button>
+  </div>
+  <div class="usuario-info">
+    <span class="usuario-nombre" id="usuarioActualHeader">👤 —</span>
+    <button class="btn-salir" onclick="cerrarSesion()">Salir</button>
+  </div>
+</header>
+
+<div id="pestanaPedido">
+  <div class="panel">
+    <h3>1 · Catálogo (sube el PDF)</h3>
+    <input type="file" id="pdfInput" accept="application/pdf" onchange="procesarPDF(event)">
+    <div id="loader" class="progreso" style="display:none;"></div>
+    <div id="infoCat" class="small"></div>
+    <div id="diag" class="diag"></div>
+    <div class="aviso-guardado" id="avisoGuardado">💾 Catálogo guardado en este dispositivo</div>
+    <div id="btnOlvidarWrap" style="margin-top:8px; display:none;">
+      <button class="gris" style="font-size:12px; padding:6px 10px;" onclick="olvidarCatalogo()">🗑 Olvidar catálogo</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>2 · Busca o escanea</h3>
+    <div class="fila">
+      <input type="text" id="busqueda" placeholder="SKU, descripción o escanea…"
+             oninput="buscar()" onkeydown="teclaBusqueda(event)">
+      <button class="camara" onclick="abrirCamara('buscar')" title="Escanear con cámara">📷</button>
+    </div>
+    <p class="small" style="margin:6px 0 0 0;">
+      Con lector externo: cursor aquí y dispara. Con celular: toca 📷.
+    </p>
+    <div id="resultados"></div>
+  </div>
+
+  <div class="panel">
+    <h3>3 · <span id="tituloLista">Pedido</span> (<span id="contador">0</span>)</h3>
+    <div class="fila" style="margin-bottom:8px;">
+      <div style="flex:1;">
+        <label class="small">Tienda:</label>
+        <input type="text" id="tienda" value="SAHAGUN" oninput="guardarEstado()">
+      </div>
+      <div style="flex:1;">
+        <label class="small">Fecha:</label>
+        <input type="text" id="fecha" readonly>
+      </div>
+    </div>
+    <table id="tablaPedido">
+      <thead><tr><th>Rex</th><th>Descripción</th><th>Cant</th><th>UM</th><th></th></tr></thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr><th colspan="2" style="text-align:right">Total:</th><th id="totalCant">0</th><th colspan="2" id="totalImp">$0</th></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="acciones-fijas">
+    <button class="verde" onclick="exportarExcel()">📥 Exportar Excel</button>
+    <button class="rojo" onclick="limpiarPedido()">🗑 Limpiar</button>
+  </div>
+</div>
+
+<div id="pestanaVincular" style="display:none;">
+  <div class="panel">
+    <h3>🔗 Vincular código de barras ↔ SKU</h3>
+    <div class="ayuda">
+      <b>¿Para qué sirve?</b> Los códigos de barras de las latas NO son el SKU del PDF.
+      Aquí los "aprendes": <i>"este código de barras = este SKU"</i>.
+      Cada SKU tiene <b>un solo código de barras</b>.
+    </div>
+
+    <div class="paso">
+      <div style="margin-bottom:8px;">
+        <span class="paso-num">1</span><b>Escanea o escribe el código de barras</b>
+      </div>
+      <div class="fila">
+        <input type="text" id="inputCodigo" class="input-gigante" placeholder="Esperando código…"
+               autocomplete="off"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();capturarCodigo();}">
+        <button class="camara" onclick="abrirCamara('vincular')" title="Escanear con cámara">📷</button>
+      </div>
+      <p class="small" style="margin:6px 0 0 0;">
+        Con lector externo: dispara apuntando al código. Con celular: toca 📷.
+      </p>
+
+      <div class="banner banner-warn" id="bannerCodigoYaVinculado">
+        <div class="banner-titulo">
+          <span class="banner-icono">⚠️</span>
+          <span>Este código YA está vinculado</span>
+        </div>
+        <div id="bannerCodigoYaVinculadoTexto"></div>
+      </div>
+
+      <div class="banner banner-info" id="bannerCodigoNuevo">
+        <div class="banner-titulo">
+          <span class="banner-icono">📦</span>
+          <span>Código capturado</span>
+        </div>
+        <div>Selecciona abajo el SKU al que pertenece este código.</div>
+      </div>
+    </div>
+
+    <div id="paso2Wrap" class="paso" style="display:none; border-color:#1e8449;">
+      <div style="margin-bottom:8px;">
+        <span class="paso-num" style="background:#1e8449;">2</span><b>Busca el producto en el catálogo</b>
+      </div>
+      <div class="info-vinculo">
+        📦 Código capturado: <b id="codigoCapturado"></b>
+      </div>
+      <input type="text" id="busquedaSku" placeholder="Escribe SKU o descripción…"
+             oninput="buscarParaVincular()" autocomplete="off">
+      <div id="resultadosSku" style="margin-top:8px; max-height:300px; overflow-y:auto;"></div>
+      <button class="gris" style="margin-top:8px; font-size:12px;" onclick="limpiarInputCodigo()">↩ Cancelar y volver</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>📋 Vínculos guardados (<span id="contadorVinculos">0</span>)</h3>
+    <div class="ayuda">
+      • 📤 <b>Exportar</b> = baja un archivo con TODOS tus vínculos.<br>
+      • 📥 <b>Importar</b> = sube ese archivo en otro dispositivo.<br>
+      • Es opcional.
+    </div>
+    <div class="fila" style="margin-bottom:8px;">
+      <button class="verde" style="flex:1;" onclick="exportarVinculos()">📤 Exportar</button>
+      <button style="flex:1;" onclick="document.getElementById('inputImportar').click()">📥 Importar</button>
+      <input type="file" id="inputImportar" accept=".json" style="display:none" onchange="importarVinculos(event)">
+    </div>
+    <input type="text" id="filtroVinculos" placeholder="Filtrar vínculos…" oninput="renderVinculos()">
+    <div class="tabla-scroll">
+      <table id="tablaVinculos">
+        <thead><tr><th>Código</th><th>SKU</th><th>Descripción</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="pestanaAjustes" style="display:none;">
+  <div class="panel">
+    <h3>👥 Administrar usuarios</h3>
+    <div class="ayuda">
+      Aquí puedes crear, editar y eliminar usuarios. Cada uno verá solo las pestañas que le marques.
+      <br><b>Importante:</b> registra un correo válido para que puedan recuperar su contraseña.
+    </div>
+    <button class="verde" style="width:100%; margin-bottom:10px;" onclick="abrirModalUsuario()">
+      ➕ Agregar usuario
+    </button>
+    <div id="listaUsuarios"></div>
+  </div>
+
+  <div class="panel">
+    <h3>🔑 Mi contraseña</h3>
+    <p class="small">Cambiar la contraseña del usuario <b id="miUsuarioActual">—</b>.</p>
+    <button class="amarillo" style="width:100%;" onclick="abrirModalCambiarMiPassword()">
+      🔑 Cambiar mi contraseña
+    </button>
+  </div>
+
+  <div class="panel">
+    <h3>💾 Respaldos</h3>
+    <p class="small">Guarda un archivo con TODA la configuración (catálogo, pedido, vínculos y usuarios).</p>
+    <div class="fila">
+      <button class="verde" style="flex:1;" onclick="exportarRespaldo()">📤 Exportar respaldo</button>
+      <button style="flex:1;" onclick="document.getElementById('inputRespaldo').click()">📥 Restaurar respaldo</button>
+      <input type="file" id="inputRespaldo" accept=".json" style="display:none" onchange="importarRespaldo(event)">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>📧 Configuración de envío de códigos (EmailJS)</h3>
+    <div class="ayuda" id="estadoEmailJS"></div>
+    <p class="small">
+      Para activar la recuperación por correo, necesitas una cuenta gratuita en
+      <b>emailjs.com</b> y pegar aquí los 3 códigos que te dan.
+    </p>
+    <label class="small">Public Key</label>
+    <input type="text" id="cfgPublicKey" placeholder="Ej. AbCdEfGhIjKlMnOp">
+    <label class="small" style="display:block; margin-top:8px;">Service ID</label>
+    <input type="text" id="cfgServiceId" placeholder="Ej. service_xxxxxxx">
+    <label class="small" style="display:block; margin-top:8px;">Template ID</label>
+    <input type="text" id="cfgTemplateId" placeholder="Ej. template_xxxxxxx">
+    <button class="verde" style="width:100%; margin-top:12px;" onclick="guardarConfigEmailJS()">
+      💾 Guardar configuración
+    </button>
+  </div>
+
+  <div class="panel">
+    <h3>⚠️ Reiniciar sistema</h3>
+    <p class="small">Borra los usuarios y vuelve a admin/admin123.</p>
+    <button class="rojo" style="width:100%;" onclick="reiniciarUsuarios()">
+      🔄 Borrar usuarios y volver a admin/admin123
+    </button>
+    <p class="small" style="margin-top:6px;">(No borra catálogo, pedido ni vínculos.)</p>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalCamara">
+  <div class="modal">
+    <h3>📷 Escanear código</h3>
+    <div id="reader"></div>
+    <p class="small" style="margin:8px 0;">Apunta al código de barras.</p>
+    <button class="rojo" style="width:100%;" onclick="cerrarCamara()">Cancelar</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalCantidad">
+  <div class="modal">
+    <div id="infoProducto" style="margin-bottom:12px;"></div>
+    <label class="small">¿Cuántas piezas?</label>
+    <input type="number" id="inputCant" class="cant-grande" value="1" inputmode="numeric"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarCantidad();}">
+    <div class="fila" style="margin-top:10px;">
+      <button class="verde" style="flex:1;" onclick="confirmarCantidad()">✔ Agregar</button>
+      <button class="gris" onclick="cerrarModalCantidad()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalVincularRapido">
+  <div class="modal">
+    <h3>🔗 Código no encontrado</h3>
+    <div class="info-vinculo" style="background:#fff3e0; border-left-color:#e67e22;">
+      No hay vínculo para: <b id="codigoRapido"></b>
+    </div>
+    <p class="small">Busca el producto y asígnale este código.</p>
+    <input type="text" id="busquedaRapida" placeholder="Escribe SKU o descripción…"
+           oninput="buscarVincularRapido()" autocomplete="off">
+    <div id="resultadosRapido" style="max-height:280px; overflow-y:auto; margin-top:8px;"></div>
+    <button class="rojo" style="width:100%; margin-top:10px;" onclick="cerrarVincularRapido()">Cancelar</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalUsuario">
+  <div class="modal">
+    <h3 id="modalUsuarioTitulo">➕ Agregar usuario</h3>
+    <label class="small">Nombre completo</label>
+    <input type="text" id="userNombre" placeholder="Ej. Juan Pérez" autocomplete="off">
+    <label class="small" style="display:block; margin-top:10px;">Usuario (para iniciar sesión)</label>
+    <input type="text" id="userUsuario" placeholder="Ej. juan" autocomplete="off" style="text-transform:lowercase;">
+    <label class="small" style="display:block; margin-top:10px;">Correo (para recuperar contraseña)</label>
+    <input type="email" id="userEmail" placeholder="Ej. juan@correo.com" autocomplete="off">
+    <label class="small" style="display:block; margin-top:10px;" id="labelUserPassword">Contraseña</label>
+    <input type="password" id="userPassword" placeholder="Mínimo 4 caracteres" autocomplete="new-password">
+    <label class="small" style="display:block; margin-top:14px;">¿Qué pestañas puede ver?</label>
+    <div class="permiso-check"><input type="checkbox" id="permPedido" checked><label for="permPedido">🛒 Pedido</label></div>
+    <div class="permiso-check"><input type="checkbox" id="permInventario"><label for="permInventario">📦 Inventario</label></div>
+    <div class="permiso-check"><input type="checkbox" id="permVincular"><label for="permVincular">🔗 Vincular</label></div>
+    <div class="permiso-check"><input type="checkbox" id="permAjustes"><label for="permAjustes">⚙️ Ajustes</label></div>
+    <div class="fila" style="margin-top:16px;">
+      <button class="verde" style="flex:1;" onclick="guardarUsuario()">💾 Guardar</button>
+      <button class="gris" onclick="cerrarModalUsuario()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalMiPassword">
+  <div class="modal">
+    <h3>🔑 Cambiar mi contraseña</h3>
+    <label class="small">Contraseña actual</label>
+    <input type="password" id="mpActual" autocomplete="current-password">
+    <label class="small" style="display:block; margin-top:10px;">Nueva contraseña</label>
+    <input type="password" id="mpNueva" autocomplete="new-password">
+    <label class="small" style="display:block; margin-top:10px;">Confirmar nueva contraseña</label>
+    <input type="password" id="mpConfirmar" autocomplete="new-password">
+    <div class="fila" style="margin-top:16px;">
+      <button class="verde" style="flex:1;" onclick="cambiarMiPassword()">💾 Guardar</button>
+      <button class="gris" onclick="document.getElementById('modalMiPassword').classList.remove('activo')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<!-- ============ MODAL RECUPERACIÓN (FUERA DE #app, siempre visible) ============ -->
+<div class="modal-bg" id="modalRecuperar">
+  <div class="modal">
+
+    <div id="recPaso1">
+      <h3>🆘 Recuperar contraseña</h3>
+      <p class="small">
+        Escribe el correo con el que registraste tu usuario.
+        Te enviaremos un código de 6 dígitos para restablecer tu contraseña.
+      </p>
+      <label class="small">Tu correo registrado</label>
+      <input type="email" id="emailRecuperar" placeholder="tu@correo.com" autocomplete="email"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();enviarCodigoOTP();}">
+      <div class="fila" style="margin-top:16px;">
+        <button class="verde" style="flex:1;" onclick="enviarCodigoOTP()">📧 Enviar código</button>
+        <button class="gris" onclick="cerrarRecuperar()">Cancelar</button>
+      </div>
+      <p class="small" style="margin-top:14px;">
+        <b>Nota:</b> Esto solo funciona si el administrador ya configuró el envío de correos.
+      </p>
+
+      <hr style="margin:20px 0; border:none; border-top:1px solid #eee;">
+      <button class="rojo" style="width:100%; font-size:13px;" onclick="borrarTodoUsuarios()">
+        🗑 BORRAR TODOS LOS USUARIOS (volver a admin/admin123)
+      </button>
+      <p class="small" style="margin-top:6px;">No borra catálogo, pedido ni vínculos.</p>
+    </div>
+
+    <div id="recPaso2" style="display:none;">
+      <h3>🔢 Ingresa el código</h3>
+      <p class="small">
+        Te enviamos un código de 6 dígitos a <b id="emailMostrado"></b>.
+        Escríbelo abajo.
+      </p>
+
+      <div class="otp-input" id="otpInputs">
+        <input type="text" maxlength="1" inputmode="numeric" data-idx="0">
+        <input type="text" maxlength="1" inputmode="numeric" data-idx="1">
+        <input type="text" maxlength="1" inputmode="numeric" data-idx="2">
+        <input type="text" maxlength="1" inputmode="numeric" data-idx="3">
+        <input type="text" maxlength="1" inputmode="numeric" data-idx="4">
+        <input type="text" maxlength="1" inputmode="numeric" data-idx="5">
+      </div>
+
+      <div class="timer" id="timerOTP">⏱ Expira en 10:00</div>
+
+      <label class="small">Nueva contraseña</label>
+      <input type="password" id="nuevaPassOTP" placeholder="Mínimo 4 caracteres">
+      <label class="small" style="display:block; margin-top:10px;">Confirmar nueva contraseña</label>
+      <input type="password" id="nuevaPassOTP2" placeholder="Repite la contraseña">
+
+      <div class="fila" style="margin-top:16px;">
+        <button class="verde" style="flex:1;" onclick="verificarOTP()">✅ Restablecer</button>
+        <button class="gris" onclick="volverRecPaso1()">↩ Atrás</button>
+      </div>
+      <button class="gris" style="width:100%; margin-top:8px; font-size:13px;" onclick="enviarCodigoOTP()">
+        🔄 Reenviar código
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ OVERLAY DE ÉXITO (FUERA DE #app) ============ -->
+<div class="exito-fullscreen" id="exitoFullscreen">
+  <div class="icono-grande">✔</div>
+  <div class="titulo">Vinculado con éxito</div>
+  <div class="detalle-grande" id="exitoFullscreenDetalle"></div>
+  <div class="pie">Abriendo captura de cantidad…</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+const KEY_STATE   = 'sahagun_state_v8';
+const KEY_MAP     = 'sahagun_mappings_v1';
+const KEY_USERS   = 'sahagun_users_v1';
+const KEY_SESSION = 'sahagun_session_v1';
+const KEY_CFG     = 'sahagun_config_v1';
+const KEY_OTP     = 'sahagun_otp_v1';
+const SESION_DIAS = 7;
+const OTP_MINUTOS = 10;
+
+let productos = [];
+let pedido = [];
+let resultadosActuales = [];
+let indiceSel = -1;
+let productoSeleccionado = null;
+let modo = 'pedido';
+let tabActual = 'pedido';
+let vinculos = {};
+let codigoPendiente = null;
+let camaraOrigen = null;
+let html5QrCode = null;
+let codigoRapidoPendiente = null;
+let usuarios = {};
+let usuarioLogueado = null;
+let modoEdicionUsuario = null;
+let configEmailJS = { publicKey: '', serviceId: '', templateId: '' };
+let otpTimerInterval = null;
+let otpActual = null;
+
+document.getElementById('fecha').value = new Date().toLocaleDateString('es-MX');
+
+/* ============ HASH ============ */
+function hashPassword(str) {
+  const sal = 'sahagun_v8_salt_2026';
+  const s = sal + str + sal;
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let k = 0; k < 500; k++) {
+    for (let i = 0; i < s.length; i++) {
+      const ch = s.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  }
+  const a = (h1 >>> 0).toString(16).padStart(8, '0');
+  const b = (h2 >>> 0).toString(16).padStart(8, '0');
+  return a + b + a + b;
+}
+
+/* ============ CONFIG ============ */
+function cargarConfig() {
+  try {
+    const raw = localStorage.getItem(KEY_CFG);
+    if (raw) configEmailJS = JSON.parse(raw);
+  } catch(e) {}
+  if (configEmailJS.publicKey && typeof emailjs !== 'undefined') {
+    try { emailjs.init({ publicKey: configEmailJS.publicKey }); } catch(e) {}
+  }
+}
+function guardarConfigEmailJS() {
+  const pk = document.getElementById('cfgPublicKey').value.trim();
+  const sid = document.getElementById('cfgServiceId').value.trim();
+  const tid = document.getElementById('cfgTemplateId').value.trim();
+  configEmailJS = { publicKey: pk, serviceId: sid, templateId: tid };
+  localStorage.setItem(KEY_CFG, JSON.stringify(configEmailJS));
+  if (pk && typeof emailjs !== 'undefined') {
+    try { emailjs.init({ publicKey: pk }); } catch(e) {}
+  }
+  actualizarEstadoEmailJS();
+  toast('✔ Configuración guardada');
+}
+function actualizarEstadoEmailJS() {
+  const el = document.getElementById('estadoEmailJS');
+  if (!el) return;
+  if (configEmailJS.publicKey && configEmailJS.serviceId && configEmailJS.templateId) {
+    el.innerHTML = '✅ <b>Configurado.</b> La recuperación por correo está activa.';
+    el.style.background = '#e8f5e9';
+    el.style.borderLeftColor = '#1e8449';
+  } else {
+    el.innerHTML = '⚠️ <b>No configurado.</b> La recuperación por correo NO está activa todavía.';
+    el.style.background = '#fff3e0';
+    el.style.borderLeftColor = '#e67e22';
+  }
+}
+
+/* ============ USUARIOS ============ */
+function inicializarUsuarios() {
+  const raw = localStorage.getItem(KEY_USERS);
+  if (raw) {
+    try { usuarios = JSON.parse(raw); } catch(e) { usuarios = {}; }
+  }
+  if (!usuarios || Object.keys(usuarios).length === 0) {
+    usuarios = {};
+    usuarios['admin'] = {
+      nombre: 'Administrador',
+      email: '',
+      hash: hashPassword('admin123'),
+      permisos: { pedido: true, inventario: true, vincular: true, ajustes: true },
+      creado: new Date().toISOString(),
+      primerLogin: true
+    };
+    guardarUsuarios();
+  }
+}
+function guardarUsuarios() {
+  try { localStorage.setItem(KEY_USERS, JSON.stringify(usuarios)); } catch(e) {}
+}
+function reiniciarUsuarios() {
+  if (!confirm('⚠️ Se BORRARÁN todos los usuarios y volverá a admin / admin123.\n\n¿Continuar?')) return;
+  if (!confirm('¿Estás seguro?')) return;
+  usuarios = {};
+  usuarios['admin'] = {
+    nombre: 'Administrador', email: '',
+    hash: hashPassword('admin123'),
+    permisos: { pedido: true, inventario: true, vincular: true, ajustes: true },
+    creado: new Date().toISOString(), primerLogin: true
+  };
+  guardarUsuarios();
+  localStorage.removeItem(KEY_SESSION);
+  location.reload();
+}
+
+/* ============ SESIÓN ============ */
+function guardarSesion(username) {
+  const expira = Date.now() + SESION_DIAS * 24 * 60 * 60 * 1000;
+  try { localStorage.setItem(KEY_SESSION, JSON.stringify({ usuario: username, expira })); } catch(e) {}
+}
+function cargarSesion() {
+  try {
+    const raw = localStorage.getItem(KEY_SESSION);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (obj.expira && obj.expira > Date.now() && usuarios[obj.usuario]) return obj.usuario;
+    localStorage.removeItem(KEY_SESSION);
+    return null;
+  } catch(e) { return null; }
+}
+function borrarSesion() { try { localStorage.removeItem(KEY_SESSION); } catch(e) {} }
+
+/* ============ LOGIN ============ */
+function intentarLogin() {
+  const u = document.getElementById('loginUsuario').value.trim().toLowerCase();
+  const p = document.getElementById('loginPassword').value;
+  const err = document.getElementById('loginError');
+  const info = document.getElementById('loginInfo');
+  err.classList.remove('show');
+  info.classList.remove('show');
+  if (!u || !p) { err.textContent = 'Ingresa usuario y contraseña'; err.classList.add('show'); return; }
+  const usuario = usuarios[u];
+  if (!usuario) { err.textContent = 'Usuario no encontrado'; err.classList.add('show'); return; }
+  if (hashPassword(p) !== usuario.hash) { err.textContent = 'Contraseña incorrecta'; err.classList.add('show'); return; }
+  usuarioLogueado = u;
+  guardarSesion(u);
+  entrarApp();
+  if (usuario.primerLogin) {
+    setTimeout(() => {
+      if (confirm('👋 ¡Bienvenido!\n\nEstás usando la contraseña por defecto (admin123).\n\n¿Quieres cambiarla ahora?')) {
+        abrirModalCambiarMiPassword();
+      }
+    }, 400);
+  }
+}
+function cerrarSesion() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  borrarSesion();
+  usuarioLogueado = null;
+  document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('activo'));
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginBg').style.display = 'flex';
+  document.getElementById('loginUsuario').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginError').classList.remove('show');
+  document.getElementById('loginInfo').classList.remove('show');
+}
+
+/* ============ OTP / RECUPERACIÓN ============ */
+function abrirRecuperar() {
+  document.getElementById('emailRecuperar').value = '';
+  document.getElementById('nuevaPassOTP').value = '';
+  document.getElementById('nuevaPassOTP2').value = '';
+  document.querySelectorAll('#otpInputs input').forEach(i => i.value = '');
+  volverRecPaso1();
+  document.getElementById('modalRecuperar').classList.add('activo');
+  setTimeout(() => document.getElementById('emailRecuperar').focus(), 100);
+}
+function cerrarRecuperar() {
+  document.getElementById('modalRecuperar').classList.remove('activo');
+  detenerTimerOTP();
+}
+function volverRecPaso1() {
+  document.getElementById('recPaso1').style.display = 'block';
+  document.getElementById('recPaso2').style.display = 'none';
+  detenerTimerOTP();
+}
+function generarCodigoOTP() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+function enviarCodigoOTP(ev) {
+  const email = document.getElementById('emailRecuperar').value.trim().toLowerCase();
+  if (!email) { alert('Escribe tu correo.'); return; }
+
+  if (!configEmailJS.publicKey || !configEmailJS.serviceId || !configEmailJS.templateId) {
+    alert('⚠️ El administrador aún no ha configurado el envío de correos.\n\nPide ayuda al administrador.');
+    return;
+  }
+
+  const encontrado = Object.entries(usuarios).find(([_, u]) => (u.email || '').toLowerCase() === email);
+  if (!encontrado) {
+    alert('❌ No hay ningún usuario registrado con ese correo.\n\nVerifica o pide al administrador que lo registre.');
+    return;
+  }
+  const [username, userData] = encontrado;
+
+  const codigo = generarCodigoOTP();
+  const expira = Date.now() + OTP_MINUTOS * 60 * 1000;
+  otpActual = { codigo, usuario: username, expira, email };
+  try { localStorage.setItem(KEY_OTP, JSON.stringify(otpActual)); } catch(e) {}
+
+  // Cambia a paso 2 INMEDIATAMENTE
+  document.getElementById('emailMostrado').textContent = email;
+  document.getElementById('recPaso1').style.display = 'none';
+  document.getElementById('recPaso2').style.display = 'block';
+  document.querySelectorAll('#otpInputs input').forEach(i => i.value = '');
+  setTimeout(() => document.querySelector('#otpInputs input[data-idx="0"]').focus(), 100);
+  iniciarTimerOTP();
+
+  // Envía el correo (en background)
+  const templateParams = {
+    to_email: email,
+    to_name: userData.nombre || username,
+    user_name: username,
+    otp_code: codigo,
+    minutes: OTP_MINUTOS,
+    app_name: 'Sahagún Pedidos'
+  };
+
+  emailjs.send(configEmailJS.serviceId, configEmailJS.templateId, templateParams, {
+    publicKey: configEmailJS.publicKey
+  })
+  .then(() => {
+    toast('📧 Código enviado a tu correo');
+  })
+  .catch(err => {
+    console.error(err);
+    alert('❌ Error al enviar el correo: ' + (err?.text || err?.message || 'desconocido') + '\n\nVerifica la configuración de EmailJS.');
+  });
+}
+function iniciarTimerOTP() {
+  detenerTimerOTP();
+  const actualizar = () => {
+    if (!otpActual) return;
+    const restante = otpActual.expira - Date.now();
+    const el = document.getElementById('timerOTP');
+    if (!el) return;
+    if (restante <= 0) {
+      el.textContent = '⏱ El código ha expirado. Reenvía uno nuevo.';
+      el.style.color = '#c0392b';
+      detenerTimerOTP();
+      return;
+    }
+    const min = Math.floor(restante / 60000);
+    const seg = Math.floor((restante % 60000) / 1000);
+    el.textContent = `⏱ Expira en ${min}:${String(seg).padStart(2,'0')}`;
+    el.style.color = '#e67e22';
+  };
+  actualizar();
+  otpTimerInterval = setInterval(actualizar, 1000);
+}
+function detenerTimerOTP() {
+  if (otpTimerInterval) { clearInterval(otpTimerInterval); otpTimerInterval = null; }
+}
+function verificarOTP() {
+  const inputs = document.querySelectorAll('#otpInputs input');
+  const codigo = Array.from(inputs).map(i => i.value).join('');
+  const nueva = document.getElementById('nuevaPassOTP').value;
+  const nueva2 = document.getElementById('nuevaPassOTP2').value;
+
+  if (codigo.length !== 6) { alert('Ingresa los 6 dígitos del código.'); return; }
+  if (!otpActual) { alert('No hay un código activo. Reenvía uno nuevo.'); return; }
+  if (Date.now() > otpActual.expira) { alert('⏱ El código expiró. Reenvía uno nuevo.'); return; }
+  if (codigo !== otpActual.codigo) { alert('❌ Código incorrecto.'); return; }
+  if (nueva.length < 4) { alert('La nueva contraseña debe tener al menos 4 caracteres.'); return; }
+  if (nueva !== nueva2) { alert('Las contraseñas no coinciden.'); return; }
+
+  const userAfectado = otpActual.usuario;
+  usuarios[userAfectado].hash = hashPassword(nueva);
+  usuarios[userAfectado].primerLogin = false;
+  guardarUsuarios();
+
+  otpActual = null;
+  try { localStorage.removeItem(KEY_OTP); } catch(e) {}
+  detenerTimerOTP();
+
+  cerrarRecuperar();
+  alert(`✅ Listo.\n\nTu contraseña fue restablecida.\n\nUsuario: ${userAfectado}\n\nYa puedes entrar con tu nueva contraseña.`);
+}
+function borrarTodoUsuarios() {
+  if (!confirm('⚠️ Se borrarán TODOS los usuarios y volverá a:\n\nUsuario: admin\nContraseña: admin123\n\n¿Continuar?')) return;
+  if (!confirm('¿Estás completamente seguro?')) return;
+  usuarios = {};
+  usuarios['admin'] = {
+    nombre: 'Administrador', email: '',
+    hash: hashPassword('admin123'),
+    permisos: { pedido: true, inventario: true, vincular: true, ajustes: true },
+    creado: new Date().toISOString(), primerLogin: true
+  };
+  guardarUsuarios();
+  try { localStorage.removeItem(KEY_SESSION); } catch(e) {}
+  cerrarRecuperar();
+  alert('✅ Listo.\n\nUsuario: admin\nContraseña: admin123');
+}
+
+/* ============ ENTRAR A LA APP ============ */
+function entrarApp() {
+  // Cerrar TODOS los modales antes de entrar
+  document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('activo'));
+  document.getElementById('loginBg').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const u = usuarios[usuarioLogueado];
+  document.getElementById('usuarioActualHeader').textContent = '👤 ' + (u.nombre || usuarioLogueado);
+  document.getElementById('miUsuarioActual').textContent = usuarioLogueado;
+  document.getElementById('cfgPublicKey').value = configEmailJS.publicKey || '';
+  document.getElementById('cfgServiceId').value = configEmailJS.serviceId || '';
+  document.getElementById('cfgTemplateId').value = configEmailJS.templateId || '';
+  actualizarEstadoEmailJS();
+  aplicarPermisos();
+  if (productos.length === 0) cargarEstado();
+  else { renderPedido(); renderVinculos(); }
+  const disponibles = ['pedido','inventario','vincular','ajustes'].filter(t => u.permisos[t]);
+  cambiarPestana(disponibles[0] || 'pedido');
+}
+function aplicarPermisos() {
+  const u = usuarios[usuarioLogueado];
+  if (!u) return;
+  document.getElementById('tabPedido').style.display     = u.permisos.pedido     ? 'inline-block' : 'none';
+  document.getElementById('tabInventario').style.display = u.permisos.inventario ? 'inline-block' : 'none';
+  document.getElementById('tabVincular').style.display   = u.permisos.vincular   ? 'inline-block' : 'none';
+  document.getElementById('tabAjustes').style.display    = u.permisos.ajustes    ? 'inline-block' : 'none';
+  if (tabActual === 'ajustes' && !u.permisos.ajustes) cambiarPestana('pedido');
+  if (u.permisos.ajustes) renderUsuarios();
+}
+
+/* ============ PESTAÑAS ============ */
+function cambiarPestana(t) {
+  const u = usuarios[usuarioLogueado];
+  if (u && !u.permisos[t]) { toast('⛔ No tienes permiso para esa pestaña', 'error'); return; }
+  tabActual = t;
+  document.getElementById('tabPedido').classList.toggle('activo', t === 'pedido');
+  document.getElementById('tabInventario').classList.toggle('activo', t === 'inventario');
+  document.getElementById('tabVincular').classList.toggle('activo', t === 'vincular');
+  document.getElementById('tabAjustes').classList.toggle('activo', t === 'ajustes');
+  document.getElementById('pestanaPedido').style.display   = (t === 'pedido' || t === 'inventario') ? 'block' : 'none';
+  document.getElementById('pestanaVincular').style.display = (t === 'vincular') ? 'block' : 'none';
+  document.getElementById('pestanaAjustes').style.display  = (t === 'ajustes') ? 'block' : 'none';
+  if (t === 'inventario') { modo = 'inventario'; document.getElementById('tituloLista').textContent = 'Conteo'; }
+  else if (t === 'pedido') { modo = 'pedido'; document.getElementById('tituloLista').textContent = 'Pedido'; }
+  else if (t === 'vincular') { setTimeout(() => document.getElementById('inputCodigo').focus(), 100); }
+  else if (t === 'ajustes') { renderUsuarios(); actualizarEstadoEmailJS(); }
+  guardarEstado();
+}
+
+/* ============ USUARIOS UI ============ */
+function renderUsuarios() {
+  const cont = document.getElementById('listaUsuarios');
+  const lista = Object.entries(usuarios);
+  if (!lista.length) { cont.innerHTML = '<p class="small">No hay usuarios.</p>'; return; }
+  const np = { pedido: '🛒', inventario: '📦', vincular: '🔗', ajustes: '⚙️' };
+  cont.innerHTML = lista.map(([user, u]) => {
+    const chips = Object.entries(u.permisos).filter(([_, v]) => v).map(([k]) => np[k]).join(' ');
+    const soyYo = user === usuarioLogueado;
+    const admins = lista.filter(([k,v]) => v.permisos.ajustes);
+    const esUltimoAdmin = u.permisos.ajustes && admins.length === 1;
+    return `<div class="usuario-row">
+      <div class="info">
+        <div class="nombre">${u.nombre || user} ${soyYo ? '<span class="small">(tú)</span>' : ''}</div>
+        <div class="small" style="font-family:monospace;">@${user}</div>
+        ${u.email ? '<div class="small">📧 ' + u.email + '</div>' : '<div class="small" style="color:#c0392b;">⚠️ Sin correo (no podrá recuperar contraseña)</div>'}
+        <div class="permisos">Pestañas: ${chips || '—'}</div>
+      </div>
+      <div class="acciones">
+        <button onclick="abrirModalUsuario('${user}')">✏️ Editar</button>
+        ${!soyYo ? `<button class="rojo" onclick="eliminarUsuario('${user}')" ${esUltimoAdmin ? 'disabled title="Último admin"' : ''}>🗑</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function abrirModalUsuario(username) {
+  modoEdicionUsuario = username || null;
+  const inpUsuario = document.getElementById('userUsuario');
+  const inpNombre = document.getElementById('userNombre');
+  const inpEmail = document.getElementById('userEmail');
+  const inpPass = document.getElementById('userPassword');
+  const labelPass = document.getElementById('labelUserPassword');
+  const perm = {
+    pedido: document.getElementById('permPedido'),
+    inventario: document.getElementById('permInventario'),
+    vincular: document.getElementById('permVincular'),
+    ajustes: document.getElementById('permAjustes')
+  };
+  if (username) {
+    const u = usuarios[username];
+    document.getElementById('modalUsuarioTitulo').textContent = '✏️ Editar usuario';
+    inpUsuario.value = username; inpUsuario.disabled = true;
+    inpNombre.value = u.nombre || '';
+    inpEmail.value = u.email || '';
+    inpPass.value = '';
+    labelPass.textContent = 'Nueva contraseña (dejar vacío para no cambiar)';
+    perm.pedido.checked = !!u.permisos.pedido;
+    perm.inventario.checked = !!u.permisos.inventario;
+    perm.vincular.checked = !!u.permisos.vincular;
+    perm.ajustes.checked = !!u.permisos.ajustes;
+  } else {
+    document.getElementById('modalUsuarioTitulo').textContent = '➕ Agregar usuario';
+    inpUsuario.value = ''; inpUsuario.disabled = false;
+    inpNombre.value = ''; inpEmail.value = ''; inpPass.value = '';
+    labelPass.textContent = 'Contraseña';
+    perm.pedido.checked = true;
+    perm.inventario.checked = false;
+    perm.vincular.checked = false;
+    perm.ajustes.checked = false;
+  }
+  document.getElementById('modalUsuario').classList.add('activo');
+  setTimeout(() => inpNombre.focus(), 100);
+}
+function cerrarModalUsuario() {
+  document.getElementById('modalUsuario').classList.remove('activo');
+  modoEdicionUsuario = null;
+}
+function guardarUsuario() {
+  const nombre = document.getElementById('userNombre').value.trim();
+  const username = document.getElementById('userUsuario').value.trim().toLowerCase();
+  const email = document.getElementById('userEmail').value.trim().toLowerCase();
+  const password = document.getElementById('userPassword').value;
+  const permisos = {
+    pedido: document.getElementById('permPedido').checked,
+    inventario: document.getElementById('permInventario').checked,
+    vincular: document.getElementById('permVincular').checked,
+    ajustes: document.getElementById('permAjustes').checked
+  };
+  if (!nombre) { alert('Pon un nombre.'); return; }
+  if (!username || !/^[a-z0-9._-]{3,20}$/.test(username)) {
+    alert('Usuario inválido. Solo letras minúsculas, números, punto, guion y guion bajo. Mínimo 3 caracteres.'); return;
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Correo inválido.'); return; }
+  if (!Object.values(permisos).some(v => v)) { alert('Marca al menos una pestaña.'); return; }
+  const esEdicion = !!modoEdicionUsuario;
+  if (!esEdicion) {
+    if (usuarios[username]) { alert('Ya existe un usuario con ese nombre.'); return; }
+    if (password.length < 4) { alert('La contraseña debe tener al menos 4 caracteres.'); return; }
+    usuarios[username] = {
+      nombre, email, hash: hashPassword(password), permisos,
+      creado: new Date().toISOString(), primerLogin: false
+    };
+  } else {
+    const u = usuarios[modoEdicionUsuario];
+    u.nombre = nombre;
+    u.email = email;
+    u.permisos = permisos;
+    if (password) {
+      if (password.length < 4) { alert('La contraseña debe tener al menos 4 caracteres.'); return; }
+      u.hash = hashPassword(password);
+    }
+    if (modoEdicionUsuario === usuarioLogueado) aplicarPermisos();
+  }
+  guardarUsuarios();
+  cerrarModalUsuario();
+  renderUsuarios();
+  toast(esEdicion ? '✔ Usuario actualizado' : '✔ Usuario creado');
+}
+function eliminarUsuario(username) {
+  if (username === usuarioLogueado) { alert('No puedes eliminarte a ti mismo.'); return; }
+  const u = usuarios[username];
+  if (!confirm(`¿Eliminar al usuario "${u.nombre || username}"?`)) return;
+  delete usuarios[username];
+  guardarUsuarios();
+  renderUsuarios();
+  toast('🗑 Usuario eliminado');
+}
+
+/* ============ CAMBIAR MI CONTRASEÑA ============ */
+function abrirModalCambiarMiPassword() {
+  document.getElementById('mpActual').value = '';
+  document.getElementById('mpNueva').value = '';
+  document.getElementById('mpConfirmar').value = '';
+  document.getElementById('modalMiPassword').classList.add('activo');
+}
+function cambiarMiPassword() {
+  const actual = document.getElementById('mpActual').value;
+  const nueva = document.getElementById('mpNueva').value;
+  const confirmar = document.getElementById('mpConfirmar').value;
+  if (!usuarioLogueado) return;
+  const u = usuarios[usuarioLogueado];
+  if (hashPassword(actual) !== u.hash) { alert('La contraseña actual no es correcta.'); return; }
+  if (nueva.length < 4) { alert('La nueva contraseña debe tener al menos 4 caracteres.'); return; }
+  if (nueva !== confirmar) { alert('Las contraseñas nuevas no coinciden.'); return; }
+  u.hash = hashPassword(nueva);
+  u.primerLogin = false;
+  guardarUsuarios();
+  document.getElementById('modalMiPassword').classList.remove('activo');
+  toast('✔ Contraseña actualizada');
+}
+
+/* ============ RESPALDO COMPLETO ============ */
+function exportarRespaldo() {
+  const data = {
+    version: 3, exportado: new Date().toISOString(),
+    productos, pedido, vinculos, usuarios, configEmailJS,
+    tienda: document.getElementById('tienda').value
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `respaldo_sahagun_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('📤 Respaldo descargado');
+}
+function importarRespaldo(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const confirmar = confirm(
+        '⚠️ Esto reemplazará TODO:\n\n' +
+        '• Catálogo: ' + (data.productos?.length || 0) + ' productos\n' +
+        '• Pedido actual\n' +
+        '• ' + Object.keys(data.vinculos || {}).length + ' vínculos\n' +
+        '• ' + Object.keys(data.usuarios || {}).length + ' usuarios\n\n' +
+        '¿Continuar?'
+      );
+      if (!confirmar) return;
+      if (data.productos) productos = data.productos;
+      if (data.pedido) pedido = data.pedido;
+      if (data.vinculos) vinculos = data.vinculos;
+      if (data.usuarios) { usuarios = data.usuarios; guardarUsuarios(); }
+      if (data.configEmailJS) { configEmailJS = data.configEmailJS; localStorage.setItem(KEY_CFG, JSON.stringify(configEmailJS)); }
+      if (data.tienda) document.getElementById('tienda').value = data.tienda;
+      guardarEstado();
+      renderPedido();
+      renderVinculos();
+      renderUsuarios();
+      actualizarEstadoEmailJS();
+      toast('✔ Respaldo restaurado');
+    } catch (err) { alert('Error al restaurar: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+/* ============ UTILIDADES ============ */
+function detectarUM(sku) {
+  const s = (sku || '').toUpperCase().trim();
+  if (/-5G$/.test(s)) return 'CUBETA';
+  if (/-G$/.test(s))  return 'GALON';
+  if (/-QT$/.test(s)) return 'LITRO';
+  if (/-L$/.test(s))  return 'LITRO';
+  return 'PIEZA';
+}
+function claseUM(um) {
+  if (um === 'GALON') return 'G';
+  if (um === 'LITRO') return 'QT';
+  if (um === 'CUBETA') return 'C5';
+  return 'PZ';
+}
+function esSKU(str) {
+  if (!str) return false;
+  const s = String(str).trim();
+  if (s.length < 5 || s.length > 30) return false;
+  if (!/^[A-Z0-9.\-]+$/i.test(s)) return false;
+  if (!/[0-9]/.test(s)) return false;
+  if (!/[A-Z.]/i.test(s)) return false;
+  if (/^\$?[0-9,]+(\.[0-9]{1,2})?$/.test(s)) return false;
+  if (/^[0-9.]+%$/.test(s)) return false;
+  return true;
+}
+function toast(msg, tipo) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('error', tipo === 'error');
+  t.classList.add('show');
+  clearTimeout(window._toastT);
+  window._toastT = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function codigoDeSku(sku) {
+  const s = sku.toUpperCase();
+  const entry = Object.entries(vinculos).find(([cod, val]) => val.toUpperCase() === s);
+  return entry ? entry[0] : null;
+}
+function skuDeCodigo(codigo) { return vinculos[codigo] || null; }
+
+/* ============ PERSISTENCIA ============ */
+function guardarEstado() {
+  try {
+    localStorage.setItem(KEY_STATE, JSON.stringify({
+      productos, pedido, vinculos,
+      tienda: document.getElementById('tienda').value,
+      modo, fecha: new Date().toISOString()
+    }));
+    localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
+  } catch(e) {}
+}
+function cargarEstado() {
+  try {
+    const raw = localStorage.getItem(KEY_STATE);
+    if (raw) {
+      const obj = JSON.parse(raw);
+      if (Array.isArray(obj.productos)) {
+        productos = obj.productos;
+        if (productos.length) {
+          const fechaStr = obj.fecha ? new Date(obj.fecha).toLocaleString('es-MX') : '';
+          document.getElementById('infoCat').innerHTML = `✔ <b>${productos.length}</b> productos restaurados <span class="small">(${fechaStr})</span>`;
+          document.getElementById('avisoGuardado').style.display = 'block';
+          document.getElementById('btnOlvidarWrap').style.display = 'block';
+        }
+      }
+      if (Array.isArray(obj.pedido)) pedido = obj.pedido;
+      if (obj.vinculos && typeof obj.vinculos === 'object') vinculos = obj.vinculos;
+      if (typeof obj.tienda === 'string') document.getElementById('tienda').value = obj.tienda;
+      if (obj.modo === 'inventario') modo = 'inventario';
+    } else {
+      const mapRaw = localStorage.getItem(KEY_MAP);
+      if (mapRaw) vinculos = JSON.parse(mapRaw);
+    }
+  } catch(e) {}
+  renderPedido();
+  renderVinculos();
+}
+function olvidarCatalogo() {
+  if (!confirm('¿Olvidar el catálogo guardado?')) return;
+  productos = [];
+  document.getElementById('infoCat').textContent = '';
+  document.getElementById('diag').textContent = '';
+  document.getElementById('avisoGuardado').style.display = 'none';
+  document.getElementById('btnOlvidarWrap').style.display = 'none';
+  guardarEstado();
+}
+
+/* ============ PDF ============ */
+async function procesarPDF(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const loader = document.getElementById('loader');
+  const info = document.getElementById('infoCat');
+  const diag = document.getElementById('diag');
+  loader.style.display = 'block';
+  info.textContent = ''; diag.textContent = '';
+  document.getElementById('avisoGuardado').style.display = 'none';
+  document.getElementById('btnOlvidarWrap').style.display = 'none';
+  productos = [];
+  let lineasTotales = 0, lineasSinSKU = 0, lineasSinPrecio = 0, paginasConError = 0;
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const totalPaginas = pdf.numPages;
+    for (let pageNum = 1; pageNum <= totalPaginas; pageNum++) {
+      loader.textContent = `⏳ Página ${pageNum} / ${totalPaginas} · ${productos.length} productos…`;
+      try {
+        const page = await pdf.getPage(pageNum);
+        const content = await page.getTextContent();
+        const lineas = {};
+        content.items.forEach(item => {
+          if (!item.str || !item.str.trim()) return;
+          const y = Math.round(item.transform[5]);
+          const x = item.transform[4];
+          let key = Object.keys(lineas).find(k => Math.abs(parseInt(k) - y) <= 3);
+          if (!key) key = y;
+          if (!lineas[key]) lineas[key] = [];
+          lineas[key].push({ x, text: item.str.trim() });
+        });
+        Object.keys(lineas).forEach(k => {
+          lineasTotales++;
+          const items = lineas[k].sort((a,b) => a.x - b.x);
+          const r = parsearLinea(items.map(i => i.text).join(' '));
+          if (r === 'sinSku') lineasSinSKU++;
+          if (r === 'sinPrecio') lineasSinPrecio++;
+        });
+      } catch (errPage) { paginasConError++; }
+      await new Promise(r => setTimeout(r, 0));
+    }
+    loader.style.display = 'none';
+    info.innerHTML = `✔ <b>${productos.length}</b> productos · ${totalPaginas} páginas`;
+    diag.textContent = `Diagnóstico: ${lineasTotales} líneas · ${lineasSinSKU} sin SKU · ${lineasSinPrecio} sin precio · ${paginasConError} errores`;
+    if (!productos.length) alert('No se detectaron productos.');
+    else {
+      guardarEstado();
+      document.getElementById('avisoGuardado').style.display = 'block';
+      document.getElementById('btnOlvidarWrap').style.display = 'block';
+    }
+  } catch (err) {
+    loader.style.display = 'none';
+    alert('Error al leer el PDF: ' + err.message);
+  }
+}
+function parsearLinea(texto) {
+  const limpio = texto.replace(/\s+/g, ' ').trim();
+  if (!limpio) return 'vacio';
+  const partes = limpio.split(' ');
+  let skuIndex = -1;
+  for (let i = 0; i < Math.min(partes.length, 3); i++) {
+    if (esSKU(partes[i])) { skuIndex = i; break; }
+  }
+  if (skuIndex < 0) return 'sinSku';
+  const sku = partes[skuIndex];
+  const resto = partes.slice(skuIndex + 1).join(' ');
+  if (/^DESCRIPCI/i.test(resto)) return 'header';
+  const precios = [...resto.matchAll(/\$?\s*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2})/g)]
+    .map(m => parseFloat(m[1].replace(/,/g, ''))).filter(n => !isNaN(n));
+  if (!precios.length) return 'sinPrecio';
+  const precio = precios[precios.length - 1];
+  const descripcion = resto
+    .replace(/\$?\s*[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}/g, '')
+    .replace(/\$?\s*[0-9]+\.?[0-9]*%/g, '').replace(/\$+/g, '')
+    .replace(/\s+/g, ' ').trim();
+  if (!descripcion || precio <= 0) return 'sinPrecio';
+  if (productos.some(p => p.sku === sku.toUpperCase())) return 'duplicado';
+  productos.push({ sku: sku.toUpperCase(), descripcion, precio, um: detectarUM(sku) });
+  return 'ok';
+}
+
+/* ============ CÁMARA ============ */
+function abrirCamara(origen) {
+  if (!productos.length) { alert('Primero sube el catálogo (PDF).'); return; }
+  camaraOrigen = origen;
+  document.getElementById('modalCamara').classList.add('activo');
+  html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 280, height: 180 } },
+    (decodedText) => { onCamaraDetecta(decodedText); },
+    () => {}
+  ).catch(err => {
+    alert('No se pudo abrir la cámara: ' + err + '\n\nLa cámara requiere HTTPS.');
+    cerrarCamara();
+  });
+}
+function cerrarCamara() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => { html5QrCode.clear(); html5QrCode = null; }).catch(() => { html5QrCode = null; });
+  }
+  document.getElementById('modalCamara').classList.remove('activo');
+}
+function onCamaraDetecta(codigo) {
+  const c = String(codigo).toUpperCase().trim();
+  if (navigator.vibrate) { try { navigator.vibrate(80); } catch(e) {} }
+  cerrarCamara();
+  setTimeout(() => {
+    if (camaraOrigen === 'vincular') {
+      document.getElementById('inputCodigo').value = c;
+      capturarCodigo();
+    } else {
+      procesarCodigoEnPedido(c);
+    }
+  }, 200);
+}
+
+/* ============ PEDIDO ============ */
+function procesarCodigoEnPedido(codigo) {
+  const c = String(codigo).toUpperCase().trim();
+  const skuVinculado = skuDeCodigo(c);
+  if (skuVinculado) {
+    const p = productos.find(x => x.sku.toUpperCase() === skuVinculado.toUpperCase());
+    if (p) { abrirModalCantidad(p); return; }
+    toast('⚠️ El SKU vinculado no está en el catálogo', 'error');
+    return;
+  }
+  const p = productos.find(x => x.sku.toUpperCase() === c);
+  if (p) { abrirModalCantidad(p); return; }
+  toast('❌ Código no encontrado: ' + c, 'error');
+  setTimeout(() => abrirVincularRapido(c), 400);
+}
+function abrirVincularRapido(codigo) {
+  codigoRapidoPendiente = codigo;
+  document.getElementById('codigoRapido').textContent = codigo;
+  document.getElementById('busquedaRapida').value = '';
+  document.getElementById('resultadosRapido').innerHTML = '';
+  document.getElementById('modalVincularRapido').classList.add('activo');
+  buscarVincularRapido();
+  setTimeout(() => document.getElementById('busquedaRapida').focus(), 100);
+}
+function cerrarVincularRapido() {
+  document.getElementById('modalVincularRapido').classList.remove('activo');
+  codigoRapidoPendiente = null;
+  document.getElementById('busqueda').focus();
+}
+function buscarVincularRapido() {
+  const q = document.getElementById('busquedaRapida').value.toLowerCase().trim();
+  const cont = document.getElementById('resultadosRapido');
+  if (!productos.length) { cont.innerHTML = '<p class="small">⚠️ No hay catálogo cargado.</p>'; return; }
+  const res = q
+    ? productos.filter(p => p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)).slice(0, 30)
+    : productos.slice(0, 30);
+  if (!res.length) { cont.innerHTML = '<p class="small">Sin resultados.</p>'; return; }
+  cont.innerHTML = '<table><thead><tr><th>SKU</th><th>Descripción</th><th></th></tr></thead><tbody>' +
+    res.map(p => {
+      const codActual = codigoDeSku(p.sku);
+      let celda, claseRow = '';
+      if (!codActual) {
+        celda = `<button class="verde" style="padding:6px 10px; font-size:12px;"
+                  onclick="asignarVincularRapido('${p.sku}')">🔗 Asignar</button>`;
+      } else if (codActual === codigoRapidoPendiente) {
+        claseRow = 'ya-vinculado';
+        celda = `<div class="estado-ok">✔ Ya asignado</div>`;
+      } else {
+        claseRow = 'ya-vinculado';
+        celda = `<div class="estado-warn">⚠️ Ya tiene:</div>
+                 <div class="chip-codigo">${codActual}</div>
+                 <button class="amarillo" style="padding:4px 8px; font-size:11px; margin-top:4px;"
+                  onclick="asignarVincularRapido('${p.sku}', true)">🔄 Reemplazar</button>`;
+      }
+      return `<tr class="resultado ${claseRow}"><td>${p.sku}</td><td>${p.descripcion}</td>
+        <td style="text-align:center;">${celda}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+function asignarVincularRapido(sku, esReemplazo) {
+  if (!codigoRapidoPendiente) return;
+  const codigo = codigoRapidoPendiente;
+  if (esReemplazo) {
+    const codViejo = codigoDeSku(sku);
+    if (codViejo) delete vinculos[codViejo];
+  }
+  if (vinculos[codigo]) delete vinculos[codigo];
+  vinculos[codigo] = sku;
+  localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
+  guardarEstado();
+  renderVinculos();
+  document.getElementById('modalVincularRapido').classList.remove('activo');
+  const prod = productos.find(p => p.sku === sku);
+  document.getElementById('exitoFullscreenDetalle').innerHTML =
+    `<div style="opacity:.8; font-size:13px; margin-bottom:8px;">CÓDIGO</div>
+     <div style="font-size:18px; margin-bottom:12px;">${codigo}</div>
+     <div style="opacity:.8; font-size:13px; margin-bottom:8px;">ASIGNADO A</div>
+     <div style="font-size:18px; font-weight:bold; margin-bottom:6px;">${sku}</div>
+     ${prod ? '<div style="font-size:13px; opacity:.9;">' + prod.descripcion + '</div>' : ''}`;
+  document.getElementById('exitoFullscreen').classList.add('show');
+  if (navigator.vibrate) { try { navigator.vibrate([60, 40, 60]); } catch(e) {} }
+  setTimeout(() => {
+    document.getElementById('exitoFullscreen').classList.remove('show');
+    codigoRapidoPendiente = null;
+    if (prod) setTimeout(() => abrirModalCantidad(prod), 150);
+  }, 1400);
+}
+
+function buscar() {
+  const q = document.getElementById('busqueda').value.toLowerCase().trim();
+  const cont = document.getElementById('resultados');
+  indiceSel = -1;
+  if (!q) { cont.innerHTML = ''; resultadosActuales = []; return; }
+  if (!productos.length) { cont.innerHTML = '<p class="small">Primero sube el PDF.</p>'; return; }
+  resultadosActuales = productos.filter(p =>
+    p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)
+  ).slice(0, 30);
+  if (!resultadosActuales.length) { cont.innerHTML = '<p class="small">Sin resultados.</p>'; return; }
+  cont.innerHTML = '<table><thead><tr><th>SKU</th><th>Descripción</th><th>UM</th><th>Precio</th></tr></thead><tbody>' +
+    resultadosActuales.map((p, i) =>
+      `<tr class="resultado" data-idx="${i}" onclick="seleccionar(${i})">
+        <td>${p.sku}</td><td>${p.descripcion}</td>
+        <td><span class="badge ${claseUM(p.um)}">${p.um}</span></td>
+        <td>$${p.precio.toFixed(2)}</td>
+      </tr>`).join('') + '</tbody></table>';
+  indiceSel = 0;
+  pintarSeleccion();
+}
+function pintarSeleccion() {
+  document.querySelectorAll('#resultados tr.resultado').forEach(tr => {
+    tr.classList.toggle('sel', parseInt(tr.dataset.idx) === indiceSel);
+  });
+  const sel = document.querySelector('#resultados tr.resultado.sel');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+function teclaBusqueda(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const q = document.getElementById('busqueda').value.trim();
+    if (!q) return;
+    procesarCodigoEnPedido(q);
+    document.getElementById('busqueda').value = '';
+    document.getElementById('resultados').innerHTML = '';
+    resultadosActuales = []; indiceSel = -1;
+    return;
+  }
+  if (!resultadosActuales.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); indiceSel = Math.min(indiceSel + 1, resultadosActuales.length - 1); pintarSeleccion(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); indiceSel = Math.max(indiceSel - 1, 0); pintarSeleccion(); }
+  else if (e.key === 'Escape') { document.getElementById('resultados').innerHTML = ''; resultadosActuales = []; }
+}
+function seleccionar(i) {
+  const p = resultadosActuales[i];
+  if (!p) return;
+  abrirModalCantidad(p);
+}
+function abrirModalCantidad(p) {
+  productoSeleccionado = p;
+  document.getElementById('infoProducto').innerHTML = `
+    <div style="font-weight:bold; font-size:14px;">${p.sku}</div>
+    <div class="small" style="margin:4px 0;">${p.descripcion}</div>
+    <div>
+      <span class="badge ${claseUM(p.um)}">${p.um}</span>
+      <span style="color:#1a5fbf; font-weight:bold; margin-left:8px;">$${p.precio.toFixed(2)}</span>
+    </div>`;
+  const inp = document.getElementById('inputCant');
+  inp.value = 1;
+  document.getElementById('modalCantidad').classList.add('activo');
+  setTimeout(() => { inp.focus(); inp.select(); }, 100);
+}
+function cerrarModalCantidad() {
+  document.getElementById('modalCantidad').classList.remove('activo');
+  productoSeleccionado = null;
+  document.getElementById('busqueda').value = '';
+  document.getElementById('resultados').innerHTML = '';
+  resultadosActuales = []; indiceSel = -1;
+  if (tabActual === 'vincular') document.getElementById('inputCodigo').focus();
+  else document.getElementById('busqueda').focus();
+}
+function confirmarCantidad() {
+  if (!productoSeleccionado) return;
+  const cant = Math.max(1, parseInt(document.getElementById('inputCant').value) || 1);
+  agregarAlPedido(productoSeleccionado, cant);
+  toast(`✔ ${cant} × ${productoSeleccionado.sku}`);
+  cerrarModalCantidad();
+}
+function agregarAlPedido(p, cant) {
+  const ex = pedido.find(x => x.sku === p.sku);
+  if (ex) ex.cantidad += cant;
+  else pedido.push({ sku: p.sku, descripcion: p.descripcion, precio: p.precio, um: p.um, cantidad: cant });
+  renderPedido();
+  guardarEstado();
+}
+
+/* ============ VINCULAR ============ */
+function capturarCodigo() {
+  const inp = document.getElementById('inputCodigo');
+  const codigo = inp.value.trim().toUpperCase();
+  if (!codigo) return;
+  document.getElementById('bannerCodigoYaVinculado').classList.remove('show');
+  document.getElementById('bannerCodigoNuevo').classList.remove('show');
+  const skuExistente = skuDeCodigo(codigo);
+  if (skuExistente) {
+    const prod = productos.find(p => p.sku.toUpperCase() === skuExistente.toUpperCase());
+    document.getElementById('bannerCodigoYaVinculadoTexto').innerHTML = `
+      <div style="margin-bottom:8px;">
+        El código <b style="font-family:monospace;">${codigo}</b> ya está asignado a:
+      </div>
+      <div style="background:white; padding:10px; border-radius:6px; font-family:monospace;">
+        <div style="font-size:16px; font-weight:bold; color:#1a3a6b;">${skuExistente}</div>
+        ${prod ? '<div style="font-size:12px; color:#555; margin-top:4px;">' + prod.descripcion + '</div>' : '<div style="font-size:12px; color:#c0392b;">⚠️ Este SKU no está en el catálogo actual</div>'}
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="amarillo" style="font-size:13px; padding:8px 14px;"
+                onclick="forzarReasignar('${codigo}')">🔄 Reasignar a otro SKU</button>
+        <button class="gris" style="font-size:13px; padding:8px 14px;"
+                onclick="limpiarInputCodigo()">Cancelar</button>
+      </div>`;
+    document.getElementById('bannerCodigoYaVinculado').classList.add('show');
+    document.getElementById('paso2Wrap').style.display = 'none';
+    codigoPendiente = null;
+    return;
+  }
+  document.getElementById('bannerCodigoNuevo').classList.add('show');
+  codigoPendiente = codigo;
+  document.getElementById('codigoCapturado').textContent = codigo;
+  document.getElementById('paso2Wrap').style.display = 'block';
+  document.getElementById('busquedaSku').value = '';
+  buscarParaVincular();
+  document.getElementById('busquedaSku').focus();
+}
+function forzarReasignar(codigo) {
+  document.getElementById('bannerCodigoYaVinculado').classList.remove('show');
+  document.getElementById('bannerCodigoNuevo').classList.add('show');
+  codigoPendiente = codigo;
+  document.getElementById('codigoCapturado').textContent = codigo + ' (reasignando)';
+  document.getElementById('paso2Wrap').style.display = 'block';
+  document.getElementById('busquedaSku').value = '';
+  buscarParaVincular();
+  document.getElementById('busquedaSku').focus();
+}
+function limpiarInputCodigo() {
+  document.getElementById('inputCodigo').value = '';
+  document.getElementById('paso2Wrap').style.display = 'none';
+  document.getElementById('bannerCodigoYaVinculado').classList.remove('show');
+  document.getElementById('bannerCodigoNuevo').classList.remove('show');
+  codigoPendiente = null;
+  document.getElementById('inputCodigo').focus();
+}
+function buscarParaVincular() {
+  const q = document.getElementById('busquedaSku').value.toLowerCase().trim();
+  const cont = document.getElementById('resultadosSku');
+  if (!productos.length) { cont.innerHTML = '<p class="small">⚠️ No hay catálogo cargado.</p>'; return; }
+  const res = q
+    ? productos.filter(p => p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)).slice(0, 30)
+    : productos.slice(0, 30);
+  if (!res.length) { cont.innerHTML = '<p class="small">Sin resultados.</p>'; return; }
+  cont.innerHTML = '<table><thead><tr><th>SKU</th><th>Descripción</th><th></th></tr></thead><tbody>' +
+    res.map(p => {
+      const codActual = codigoDeSku(p.sku);
+      let celda, claseRow = '';
+      if (!codActual) {
+        celda = `<button class="verde" style="padding:6px 10px; font-size:12px;"
+                  onclick="guardarVinculo('${p.sku}')">🔗 Asignar</button>`;
+      } else if (codActual === codigoPendiente) {
+        claseRow = 'ya-vinculado';
+        celda = `<div class="estado-ok">✔ Ya asignado</div>
+                 <button class="gris" style="padding:4px 8px; font-size:11px; margin-top:4px;"
+                  onclick="quitarVinculoActual('${codigoPendiente}')">Quitar</button>`;
+      } else {
+        claseRow = 'ya-vinculado';
+        celda = `<div class="estado-warn">⚠️ Ya tiene:</div>
+                 <div class="chip-codigo">${codActual}</div>
+                 <button class="amarillo" style="padding:4px 8px; font-size:11px; margin-top:4px;"
+                  onclick="guardarVinculo('${p.sku}', true)">🔄 Reemplazar</button>`;
+      }
+      return `<tr class="resultado ${claseRow}"><td>${p.sku}</td><td>${p.descripcion}</td>
+        <td style="text-align:center;">${celda}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+function quitarVinculoActual(codigo) {
+  if (!confirm(`¿Quitar el vínculo del código ${codigo}?`)) return;
+  delete vinculos[codigo];
+  localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
+  guardarEstado();
+  renderVinculos();
+  buscarParaVincular();
+  toast('✔ Vínculo eliminado');
+}
+function guardarVinculo(sku, esReemplazo) {
+  if (!codigoPendiente) return;
+  const codigo = codigoPendiente;
+  if (vinculos[codigo]) delete vinculos[codigo];
+  if (esReemplazo) {
+    const codViejo = codigoDeSku(sku);
+    if (codViejo) delete vinculos[codViejo];
+  }
+  vinculos[codigo] = sku;
+  localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
+  guardarEstado();
+  renderVinculos();
+  const prod = productos.find(p => p.sku === sku);
+  if (navigator.vibrate) { try { navigator.vibrate([60, 40, 60]); } catch(e) {} }
+  document.getElementById('exitoFullscreenDetalle').innerHTML =
+    `<div style="opacity:.8; font-size:13px; margin-bottom:8px;">CÓDIGO</div>
+     <div style="font-size:18px; margin-bottom:12px;">${codigo}</div>
+     <div style="opacity:.8; font-size:13px; margin-bottom:8px;">ASIGNADO A</div>
+     <div style="font-size:18px; font-weight:bold; margin-bottom:6px;">${sku}</div>
+     ${prod ? '<div style="font-size:13px; opacity:.9;">' + prod.descripcion + '</div>' : ''}`;
+  document.getElementById('exitoFullscreen').classList.add('show');
+  setTimeout(() => {
+    document.getElementById('exitoFullscreen').classList.remove('show');
+    document.getElementById('inputCodigo').value = '';
+    document.getElementById('bannerCodigoNuevo').classList.remove('show');
+    document.getElementById('bannerCodigoYaVinculado').classList.remove('show');
+    document.getElementById('paso2Wrap').style.display = 'none';
+    codigoPendiente = null;
+    document.getElementById('inputCodigo').focus();
+  }, 1400);
+}
+function renderVinculos() {
+  const tb = document.querySelector('#tablaVinculos tbody');
+  const filtro = (document.getElementById('filtroVinculos').value || '').toLowerCase().trim();
+  const entries = Object.entries(vinculos).filter(([cod, sku]) => {
+    if (!filtro) return true;
+    const prod = productos.find(p => p.sku.toUpperCase() === sku.toUpperCase());
+    const desc = prod ? prod.descripcion.toLowerCase() : '';
+    return cod.toLowerCase().includes(filtro) || sku.toLowerCase().includes(filtro) || desc.includes(filtro);
+  });
+  document.getElementById('contadorVinculos').textContent = Object.keys(vinculos).length;
+  if (!entries.length) {
+    tb.innerHTML = '<tr><td colspan="4" class="small" style="text-align:center; padding:20px;">Aún no hay vínculos guardados</td></tr>';
+    return;
+  }
+  tb.innerHTML = entries.map(([cod, sku]) => {
+    const prod = productos.find(p => p.sku.toUpperCase() === sku.toUpperCase());
+    const desc = prod ? prod.descripcion : '⚠️ (SKU no está en catálogo)';
+    return `<tr><td style="font-family:monospace;">${cod}</td><td>${sku}</td>
+      <td class="small">${desc}</td>
+      <td><button class="rojo" style="padding:6px 10px; font-size:12px;" onclick="borrarVinculo('${cod}')">X</button></td></tr>`;
+  }).join('');
+}
+function borrarVinculo(codigo) {
+  if (!confirm(`¿Borrar el vínculo del código ${codigo}?`)) return;
+  delete vinculos[codigo];
+  localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
+  guardarEstado();
+  renderVinculos();
+}
+function exportarVinculos() {
+  if (!Object.keys(vinculos).length) { alert('No hay vínculos para exportar.'); return; }
+  const data = { version: 1, exportado: new Date().toISOString(), total: Object.keys(vinculos).length, vinculos };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `vinculos_sahagun_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('📤 Archivo descargado');
+}
+function importarVinculos(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const nuevos = data.vinculos || data;
+      if (!nuevos || typeof nuevos !== 'object') throw new Error('Formato inválido');
+      const total = Object.keys(nuevos).length;
+      const fusionar = confirm(`Se encontraron ${total} vínculos.\n\n• Aceptar = FUSIONAR\n• Cancelar = REEMPLAZAR`);
+      if (fusionar) { vinculos = { ...vinculos, ...nuevos }; toast(`✔ ${total} fusionados`); }
+      else { vinculos = { ...nuevos }; toast(`✔ ${total} reemplazados`); }
+      localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
+      guardarEstado();
+      renderVinculos();
+    } catch (err) { alert('Error al importar: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+/* ============ RENDER PEDIDO ============ */
+function renderPedido() {
+  const tb = document.querySelector('#tablaPedido tbody');
+  tb.innerHTML = pedido.map((p, i) => `
+    <tr>
+      <td>${p.sku}</td>
+      <td>${p.descripcion}</td>
+      <td><input class="cant" type="number" min="1" value="${p.cantidad}" inputmode="numeric"
+                 onchange="cambiarCant(${i}, this.value)"></td>
+      <td><span class="badge ${claseUM(p.um)}">${p.um}</span></td>
+      <td><button class="rojo" onclick="eliminar(${i})" style="padding:6px 10px;">X</button></td>
+    </tr>`).join('');
+  const totalCant = pedido.reduce((s, p) => s + p.cantidad, 0);
+  const totalImp = pedido.reduce((s, p) => s + p.precio * p.cantidad, 0);
+  document.getElementById('totalCant').textContent = totalCant;
+  document.getElementById('totalImp').textContent = '$' + totalImp.toFixed(2);
+  document.getElementById('contador').textContent = pedido.length;
+}
+function cambiarCant(i, v) { pedido[i].cantidad = Math.max(1, parseInt(v) || 1); renderPedido(); guardarEstado(); }
+function eliminar(i) { pedido.splice(i, 1); renderPedido(); guardarEstado(); }
+function limpiarPedido() {
+  if (!pedido.length) return;
+  if (confirm('¿Borrar todo ' + (modo === 'pedido' ? 'el pedido' : 'el conteo') + '?')) {
+    pedido = []; renderPedido(); guardarEstado();
+  }
+}
+function exportarExcel() {
+  if (!pedido.length) { alert('La lista está vacía.'); return; }
+  const tienda = document.getElementById('tienda').value || 'SAHAGUN';
+  const fecha = new Date().toLocaleDateString('es-MX').replace(/\//g, '-');
+  const esPedido = modo === 'pedido';
+  const aoa = [];
+  aoa.push([esPedido ? 'Formato de Pedidos' : 'Inventario', '', 'Tienda', tienda]);
+  aoa.push(['', '', 'Fecha', fecha]);
+  aoa.push(['Rex', 'Descripción', 'Cantidad', 'UM']);
+  pedido.forEach(p => aoa.push([p.sku, p.descripcion, p.cantidad, p.um]));
+  for (let i = 0; i < 15; i++) aoa.push(['', '', '', '']);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 18 }, { wch: 50 }, { wch: 12 }, { wch: 10 }];
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, esPedido ? 'Pedido' : 'Inventario');
+  const prefijo = esPedido ? 'pedido' : 'inventario';
+  XLSX.writeFile(wb, `${prefijo}_${tienda}_${fecha}.xlsx`);
+}
+
+/* ============ ARRANQUE ============ */
+function arrancar() {
+  // Cerrar cualquier modal que haya quedado abierto de una sesión anterior
+  document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('activo'));
+  try {
+    cargarConfig();
+    inicializarUsuarios();
+    try {
+      const otpRaw = localStorage.getItem(KEY_OTP);
+      if (otpRaw) {
+        const o = JSON.parse(otpRaw);
+        if (o && o.expira > Date.now()) otpActual = o;
+        else localStorage.removeItem(KEY_OTP);
+      }
+    } catch(e) {}
+  } catch(e) { console.error('Error inicializando:', e); }
+  const sesionUser = cargarSesion();
+  if (sesionUser) {
+    usuarioLogueado = sesionUser;
+    entrarApp();
+  } else {
+    document.getElementById('loginBg').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    setTimeout(() => { const inp = document.getElementById('loginUsuario'); if (inp) inp.focus(); }, 200);
+  }
+}
+arrancar();
+
+/* ============ AUTO-AVANCE DE OTP ============ */
+document.addEventListener('DOMContentLoaded', () => {
+  const inputs = document.querySelectorAll('#otpInputs input');
+  inputs.forEach((inp, idx) => {
+    inp.addEventListener('input', (e) => {
+      const v = e.target.value.replace(/[^0-9]/g, '');
+      e.target.value = v.slice(0, 1);
+      if (v && idx < inputs.length - 1) inputs[idx + 1].focus();
+    });
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+        inputs[idx - 1].focus();
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        verificarOTP();
+      }
+    });
+    inp.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+      if (text.length >= 6) {
+        inputs.forEach((inp2, i) => inp2.value = text[i] || '');
+        inputs[5].focus();
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
