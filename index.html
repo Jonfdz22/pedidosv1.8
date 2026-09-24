@@ -373,13 +373,18 @@
     </button>
   </div>
 
-  <div class="panel">
-    <h3>⚠️ Reiniciar sistema</h3>
-    <p class="small">Borra los usuarios y vuelve a admin/admin123.</p>
+  <div class="panel" style="border:2px solid #c0392b;">
+    <h3>⚠️ Zona de riesgo</h3>
+    <p class="small">
+      <b>Solo visible para administradores.</b> Esta acción borra TODOS los usuarios y reinicia
+      la app con el usuario por defecto (admin / admin123).
+    </p>
     <button class="rojo" style="width:100%;" onclick="reiniciarUsuarios()">
       🔄 Borrar usuarios y volver a admin/admin123
     </button>
-    <p class="small" style="margin-top:6px;">(No borra catálogo, pedido ni vínculos.)</p>
+    <p class="small" style="margin-top:6px; color:#c0392b;">
+      ⚠️ No borra catálogo, pedido ni vínculos, SOLO usuarios.
+    </p>
   </div>
 </div>
 
@@ -460,7 +465,7 @@
 
 </div><!-- /app -->
 
-<!-- ============ MODAL RECUPERACIÓN (FUERA DE #app, siempre visible) ============ -->
+<!-- ============ MODAL RECUPERACIÓN (FUERA DE #app) ============ -->
 <div class="modal-bg" id="modalRecuperar">
   <div class="modal">
 
@@ -468,7 +473,7 @@
       <h3>🆘 Recuperar contraseña</h3>
       <p class="small">
         Escribe el correo con el que registraste tu usuario.
-        Te enviaremos un código de 6 dígitos para restablecer tu contraseña.
+        Si está registrado, te enviaremos un código de 6 dígitos.
       </p>
       <label class="small">Tu correo registrado</label>
       <input type="email" id="emailRecuperar" placeholder="tu@correo.com" autocomplete="email"
@@ -478,14 +483,8 @@
         <button class="gris" onclick="cerrarRecuperar()">Cancelar</button>
       </div>
       <p class="small" style="margin-top:14px;">
-        <b>Nota:</b> Esto solo funciona si el administrador ya configuró el envío de correos.
+        <b>Nota:</b> Si el correo no está registrado, no recibirás ningún código.
       </p>
-
-      <hr style="margin:20px 0; border:none; border-top:1px solid #eee;">
-      <button class="rojo" style="width:100%; font-size:13px;" onclick="borrarTodoUsuarios()">
-        🗑 BORRAR TODOS LOS USUARIOS (volver a admin/admin123)
-      </button>
-      <p class="small" style="margin-top:6px;">No borra catálogo, pedido ni vínculos.</p>
     </div>
 
     <div id="recPaso2" style="display:none;">
@@ -644,8 +643,14 @@ function guardarUsuarios() {
   try { localStorage.setItem(KEY_USERS, JSON.stringify(usuarios)); } catch(e) {}
 }
 function reiniciarUsuarios() {
+  if (!usuarioLogueado || !usuarios[usuarioLogueado] || !usuarios[usuarioLogueado].permisos.ajustes) {
+    alert('⛔ No tienes permiso para esta acción.');
+    return;
+  }
   if (!confirm('⚠️ Se BORRARÁN todos los usuarios y volverá a admin / admin123.\n\n¿Continuar?')) return;
-  if (!confirm('¿Estás seguro?')) return;
+  if (!confirm('¿Estás seguro? Esta acción no se puede deshacer.')) return;
+  const palabra = prompt('Escribe BORRAR para confirmar:');
+  if (palabra !== 'BORRAR') { alert('Cancelado.'); return; }
   usuarios = {};
   usuarios['admin'] = {
     nombre: 'Administrador', email: '',
@@ -685,8 +690,8 @@ function intentarLogin() {
   info.classList.remove('show');
   if (!u || !p) { err.textContent = 'Ingresa usuario y contraseña'; err.classList.add('show'); return; }
   const usuario = usuarios[u];
-  if (!usuario) { err.textContent = 'Usuario no encontrado'; err.classList.add('show'); return; }
-  if (hashPassword(p) !== usuario.hash) { err.textContent = 'Contraseña incorrecta'; err.classList.add('show'); return; }
+  if (!usuario) { err.textContent = 'Usuario o contraseña incorrectos'; err.classList.add('show'); return; }
+  if (hashPassword(p) !== usuario.hash) { err.textContent = 'Usuario o contraseña incorrectos'; err.classList.add('show'); return; }
   usuarioLogueado = u;
   guardarSesion(u);
   entrarApp();
@@ -742,19 +747,28 @@ function enviarCodigoOTP(ev) {
     return;
   }
 
+  // SEGURIDAD: no revelar si el correo existe o no
   const encontrado = Object.entries(usuarios).find(([_, u]) => (u.email || '').toLowerCase() === email);
+
   if (!encontrado) {
-    alert('❌ No hay ningún usuario registrado con ese correo.\n\nVerifica o pide al administrador que lo registre.');
+    // Aun así avanzamos al paso 2 (fake) para no revelar que el correo no existe
+    document.getElementById('emailMostrado').textContent = email;
+    document.getElementById('recPaso1').style.display = 'none';
+    document.getElementById('recPaso2').style.display = 'block';
+    document.querySelectorAll('#otpInputs input').forEach(i => i.value = '');
+    setTimeout(() => document.querySelector('#otpInputs input[data-idx="0"]').focus(), 100);
+    otpActual = null;
+    iniciarTimerOTP();
+    alert('Si el correo está registrado, recibirás un código en unos momentos.');
     return;
   }
-  const [username, userData] = encontrado;
 
+  const [username, userData] = encontrado;
   const codigo = generarCodigoOTP();
   const expira = Date.now() + OTP_MINUTOS * 60 * 1000;
   otpActual = { codigo, usuario: username, expira, email };
   try { localStorage.setItem(KEY_OTP, JSON.stringify(otpActual)); } catch(e) {}
 
-  // Cambia a paso 2 INMEDIATAMENTE
   document.getElementById('emailMostrado').textContent = email;
   document.getElementById('recPaso1').style.display = 'none';
   document.getElementById('recPaso2').style.display = 'block';
@@ -762,7 +776,6 @@ function enviarCodigoOTP(ev) {
   setTimeout(() => document.querySelector('#otpInputs input[data-idx="0"]').focus(), 100);
   iniciarTimerOTP();
 
-  // Envía el correo (en background)
   const templateParams = {
     to_email: email,
     to_name: userData.nombre || username,
@@ -775,21 +788,23 @@ function enviarCodigoOTP(ev) {
   emailjs.send(configEmailJS.serviceId, configEmailJS.templateId, templateParams, {
     publicKey: configEmailJS.publicKey
   })
-  .then(() => {
-    toast('📧 Código enviado a tu correo');
-  })
+  .then(() => { toast('📧 Código enviado a tu correo'); })
   .catch(err => {
     console.error(err);
-    alert('❌ Error al enviar el correo: ' + (err?.text || err?.message || 'desconocido') + '\n\nVerifica la configuración de EmailJS.');
+    alert('❌ Error al enviar el correo: ' + (err?.text || err?.message || 'desconocido'));
   });
 }
 function iniciarTimerOTP() {
   detenerTimerOTP();
   const actualizar = () => {
-    if (!otpActual) return;
-    const restante = otpActual.expira - Date.now();
     const el = document.getElementById('timerOTP');
     if (!el) return;
+    if (!otpActual) {
+      el.textContent = '⏱ Esperando verificación…';
+      el.style.color = '#888';
+      return;
+    }
+    const restante = otpActual.expira - Date.now();
     if (restante <= 0) {
       el.textContent = '⏱ El código ha expirado. Reenvía uno nuevo.';
       el.style.color = '#c0392b';
@@ -814,7 +829,7 @@ function verificarOTP() {
   const nueva2 = document.getElementById('nuevaPassOTP2').value;
 
   if (codigo.length !== 6) { alert('Ingresa los 6 dígitos del código.'); return; }
-  if (!otpActual) { alert('No hay un código activo. Reenvía uno nuevo.'); return; }
+  if (!otpActual) { alert('❌ Código incorrecto o expirado.'); return; }
   if (Date.now() > otpActual.expira) { alert('⏱ El código expiró. Reenvía uno nuevo.'); return; }
   if (codigo !== otpActual.codigo) { alert('❌ Código incorrecto.'); return; }
   if (nueva.length < 4) { alert('La nueva contraseña debe tener al menos 4 caracteres.'); return; }
@@ -831,21 +846,6 @@ function verificarOTP() {
 
   cerrarRecuperar();
   alert(`✅ Listo.\n\nTu contraseña fue restablecida.\n\nUsuario: ${userAfectado}\n\nYa puedes entrar con tu nueva contraseña.`);
-}
-function borrarTodoUsuarios() {
-  if (!confirm('⚠️ Se borrarán TODOS los usuarios y volverá a:\n\nUsuario: admin\nContraseña: admin123\n\n¿Continuar?')) return;
-  if (!confirm('¿Estás completamente seguro?')) return;
-  usuarios = {};
-  usuarios['admin'] = {
-    nombre: 'Administrador', email: '',
-    hash: hashPassword('admin123'),
-    permisos: { pedido: true, inventario: true, vincular: true, ajustes: true },
-    creado: new Date().toISOString(), primerLogin: true
-  };
-  guardarUsuarios();
-  try { localStorage.removeItem(KEY_SESSION); } catch(e) {}
-  cerrarRecuperar();
-  alert('✅ Listo.\n\nUsuario: admin\nContraseña: admin123');
 }
 
 /* ============ ENTRAR A LA APP ============ */
