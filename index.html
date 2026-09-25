@@ -2018,4 +2018,96 @@ function importarVinculos(event) {
       guardarEstado();
       renderVinculos();
       toast(`✔ ${total}`);
-    } catch (err) { alert('
+    } catch (err) { alert('Error: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+/* ============ PEDIDO RENDER ============ */
+function renderPedido() {
+  const tb = document.querySelector('#tablaPedido tbody');
+  tb.innerHTML = pedido.map((p, i) => {
+    let origenBadge = '';
+    if (p.fuente === 'PDF') origenBadge = '<span class="badge badge-promo">🏷️</span>';
+    else if (p.fuente === 'Sistema') origenBadge = '<span class="badge badge-sistema">📦</span>';
+    else if (p.fuente === 'Manual') origenBadge = '<span class="badge badge-manual">✏️</span>';
+    return `<tr>
+      <td>${p.sku}</td>
+      <td>${p.descripcion} ${origenBadge}</td>
+      <td><input class="cant" type="number" min="1" value="${p.cantidad}"
+                 onchange="cambiarCant(${i}, this.value)"></td>
+      <td><span class="badge ${claseUM(p.um)}">${p.um}</span></td>
+      <td><button class="rojo" onclick="eliminar(${i})" style="padding:6px 10px;">X</button></td>
+    </tr>`;
+  }).join('');
+  const tc = pedido.reduce((s, p) => s + p.cantidad, 0);
+  const ti = pedido.reduce((s, p) => s + p.precio * p.cantidad, 0);
+  document.getElementById('totalCant').textContent = tc;
+  document.getElementById('totalImp').textContent = '$' + ti.toFixed(2);
+  document.getElementById('contador').textContent = pedido.length;
+}
+function cambiarCant(i, v) { pedido[i].cantidad = Math.max(1, parseInt(v) || 1); renderPedido(); guardarEstado(); }
+function eliminar(i) { pedido.splice(i, 1); renderPedido(); guardarEstado(); }
+function limpiarPedido() {
+  if (!pedido.length) return;
+  if (confirm('¿Borrar todo el pedido?')) { pedido = []; renderPedido(); guardarEstado(); }
+}
+function exportarExcel() {
+  if (!pedido.length) { alert('Lista vacía.'); return; }
+  const tienda = document.getElementById('tienda').value || 'SAHAGUN';
+  const fecha = new Date().toLocaleDateString('es-MX').replace(/\//g, '-');
+  const aoa = [];
+  aoa.push(['Formato de Pedidos', '', 'Tienda', tienda]);
+  aoa.push(['', '', 'Fecha', fecha]);
+  aoa.push(['', '', 'Usuario', usuarioLogueado || '']);
+  aoa.push(['Rex', 'Descripción', 'Cantidad', 'UM', 'Fuente', 'Agregado por', 'Fecha registro']);
+  pedido.forEach(p => aoa.push([
+    p.sku, p.descripcion, p.cantidad, p.um,
+    p.fuente || '', p.agregadoPor || '', fmtFecha(p.fecha)
+  ]));
+  for (let i = 0; i < 10; i++) aoa.push(['', '', '', '', '', '', '']);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 18 }, { wch: 45 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 20 }];
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pedido');
+  XLSX.writeFile(wb, `pedido_${tienda}_${fecha}.xlsx`);
+}
+
+/* ============ ARRANQUE ============ */
+function arrancar() {
+  document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('activo'));
+  try {
+    cargarConfig();
+    inicializarUsuarios();
+  } catch(e) { console.error('Init:', e); }
+  const sesionUser = cargarSesion();
+  if (sesionUser) {
+    usuarioLogueado = sesionUser;
+    entrarApp();
+  } else {
+    document.getElementById('loginBg').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    setTimeout(() => { const inp = document.getElementById('loginUsuario'); if (inp) inp.focus(); }, 200);
+  }
+}
+arrancar();
+
+/* ============ AUTO-AVANCE OTP ============ */
+document.addEventListener('DOMContentLoaded', () => {
+  const inputs = document.querySelectorAll('#otpInputs input');
+  inputs.forEach((inp, idx) => {
+    inp.addEventListener('input', (e) => {
+      const v = e.target.value.replace(/[^0-9]/g, '');
+      e.target.value = v.slice(0, 1);
+      if (v && idx < inputs.length - 1) inputs[idx + 1].focus();
+    });
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !e.target.value && idx > 0) inputs[idx - 1].focus();
+      if (e.key === 'Enter') { e.preventDefault(); verificarOTP(); }
+    });
+  });
+});
+</script>
+</body>
+</html>
