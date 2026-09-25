@@ -27,6 +27,7 @@
   h3 { margin:0 0 10px 0; color:#1a3a6b; font-size:15px;}
   input, textarea, button, select { font-size:16px; padding:10px; box-sizing:border-box; font-family:inherit;}
   input[type=text], input[type=number], input[type=password], input[type=email] { width:100%; border:1px solid #ccc; border-radius:6px;}
+  input.seleccionado { background:#e3f2fd !important; font-weight:bold; color:#1a3a6b; }
   select { width:100%; border:1px solid #ccc; border-radius:6px; background:white;}
   button { background:#1a5fbf; color:white; border:none; border-radius:6px; cursor:pointer; padding:10px 16px; font-weight:bold;}
   button:active { opacity:.7; }
@@ -40,6 +41,7 @@
   th, td { border:1px solid #ddd; padding:6px 8px; text-align:left; font-size:13px;}
   th { background:#1a5fbf; color:white; font-size:12px;}
   tr.resultado:active, tr.resultado.sel { background:#dbe9ff; }
+  tr.resultado.sel td { background:#dbe9ff; }
   tr.resultado { cursor:pointer; }
   tr.ya-vinculado { background:#e8f5e9 !important; }
   tr.sobrante { background:#e8f5e9 !important; }
@@ -144,18 +146,19 @@
                   border-radius:10px; font-size:10px; font-weight:bold; margin-left:4px;}
   .chip-pending { display:inline-block; background:#e67e22; color:white; padding:2px 8px;
                   border-radius:10px; font-size:10px; font-weight:bold; margin-left:4px;}
-  /* Modal cantidad mejorado */
   .modal-cant-header { background:#f0f7ff; padding:12px; border-radius:8px; margin-bottom:12px;
                        border-left:4px solid #1a5fbf; }
   .modal-cant-sku { font-weight:bold; font-size:15px; color:#1a3a6b; }
   .modal-cant-desc { font-size:13px; color:#444; margin:4px 0 8px 0; }
   .modal-cant-info { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
-  .modal-cant-info .pill { padding:6px 10px; border-radius:8px; font-size:12px; font-weight:bold;}
+  .pill { padding:6px 10px; border-radius:8px; font-size:12px; font-weight:bold;}
   .pill-promo { background:#fff3e0; color:#7a3d00; border:1px solid #e67e22;}
   .pill-sistema { background:#e3f2fd; color:#1a3a6b; border:1px solid #1a5fbf;}
   .pill-manual { background:#f0f0f0; color:#555; border:1px solid #999;}
   .pill-existencias { background:#e8f5e9; color:#0d4d26; border:1px solid #1e8449;}
   .pill-sin-datos { background:#fff3e0; color:#7a3d00; border:1px solid #e67e22;}
+  .hint-scan { background:#fff3e0; padding:8px 10px; border-radius:6px; font-size:12px; color:#7a3d00;
+               margin-top:8px; border-left:3px solid #e67e22;}
   @media(min-width:700px){
     body { max-width:900px; margin:0 auto; padding-bottom:20px;}
     .acciones-fijas { position:static; margin:10px; box-shadow:0 2px 6px rgba(0,0,0,.08); border-radius:10px;}
@@ -164,7 +167,6 @@
 </head>
 <body>
 
-<!-- LOGIN -->
 <div class="login-bg" id="loginBg" style="display:none;">
   <div class="login-card">
     <div class="logo">🎨</div>
@@ -220,12 +222,17 @@
              oninput="buscar()" onkeydown="teclaBusqueda(event)">
       <button class="camara" onclick="abrirCamara('buscar')">📷</button>
     </div>
+    <div class="hint-scan" id="hintScan" style="display:none;">
+      💡 <b>Tip:</b> el último producto quedó seleccionado. Escanea otro o presiona <b>Enter</b> para agregar de nuevo el mismo.
+    </div>
     <div id="resultados"></div>
     <div id="noEncontradoWrap" style="display:none; margin-top:12px;">
       <div class="ayuda">
         No se encontró el producto.
         <button class="amarillo" style="margin-top:8px; font-size:13px; padding:8px 14px;"
                 onclick="abrirModalNuevoProducto()">✏️ Agregar como producto nuevo</button>
+        <button class="gris" style="margin-top:8px; font-size:13px; padding:8px 14px;"
+                onclick="abrirVincularRapido(document.getElementById('busqueda').value)">🔗 Vincular a un producto existente</button>
       </div>
     </div>
   </div>
@@ -255,7 +262,8 @@
     <h3>1 · Cargar inventario del sistema</h3>
     <div class="ayuda">
       Sube el <b>Reporte de Inventario</b> (Excel del sistema). Sus existencias se usarán
-      en la pestaña <b>Pedido</b> para saber cuántas piezas tienes. Las existencias negativas se conservan.
+      en la pestaña <b>Pedido</b> para saber cuántas piezas tienes y para reconocer productos
+      que no están en el PDF de promociones. Las existencias negativas se conservan.
     </div>
     <input type="file" id="invFileInput" accept=".xlsx,.xls,.csv" onchange="procesarInventario(event)">
     <div id="invInfo" class="small" style="margin-top:8px;"></div>
@@ -282,9 +290,7 @@
     <input type="text" id="invFiltro" placeholder="Filtrar productos…" oninput="renderInventario()">
     <div class="tabla-scroll">
       <table id="tablaInventario">
-        <thead>
-          <tr><th>SKU</th><th>Descripción</th><th>Debe haber</th><th>Contado</th><th>Dif</th><th>Dif $</th></tr>
-        </thead>
+        <thead><tr><th>SKU</th><th>Descripción</th><th>Debe haber</th><th>Contado</th><th>Dif</th><th>Dif $</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -320,8 +326,7 @@
     </div>
     <div id="paso2Wrap" class="paso" style="display:none; border-color:#1e8449;">
       <div class="info-vinculo">📦 Código: <b id="codigoCapturado"></b></div>
-      <input type="text" id="busquedaSku" placeholder="SKU o descripción…"
-             oninput="buscarParaVincular()">
+      <input type="text" id="busquedaSku" placeholder="SKU o descripción…" oninput="buscarParaVincular()">
       <div id="resultadosSku" style="margin-top:8px; max-height:300px; overflow-y:auto;"></div>
       <button class="gris" style="margin-top:8px; font-size:12px;" onclick="limpiarInputCodigo()">↩ Cancelar</button>
     </div>
@@ -329,11 +334,14 @@
   <div class="panel">
     <h3>📋 Vínculos (<span id="contadorVinculos">0</span>)</h3>
     <div class="fila" style="margin-bottom:8px;">
-      <button class="verde" style="flex:1;" onclick="exportarVinculos()">📤 JSON</button>
-      <button style="flex:1; background:#1e8449;" onclick="exportarVinculosExcel()">📊 Excel</button>
-      <button style="flex:1;" onclick="document.getElementById('inputImportar').click()">📥 Importar</button>
+      <button class="verde" style="flex:1; font-size:12px;" onclick="exportarVinculos()">📤 JSON</button>
+      <button style="flex:1; background:#1e8449; font-size:12px;" onclick="exportarVinculosExcel()">📊 Excel</button>
+      <button style="flex:1; font-size:12px;" onclick="document.getElementById('inputImportar').click()">📥 Importar</button>
       <input type="file" id="inputImportar" accept=".json" style="display:none" onchange="importarVinculos(event)">
     </div>
+    <p class="small" style="margin:0 0 8px 0;">
+      <b>JSON</b>: para pasar vínculos a otro dispositivo · <b>Excel</b>: para revisar quién creó qué.
+    </p>
     <input type="text" id="filtroVinculos" placeholder="Filtrar…" oninput="renderVinculos()">
     <div class="tabla-scroll">
       <table id="tablaVinculos">
@@ -366,12 +374,9 @@
   <div class="panel">
     <h3>📧 EmailJS</h3>
     <div class="ayuda" id="estadoEmailJS"></div>
-    <label class="small">Public Key</label>
-    <input type="text" id="cfgPublicKey">
-    <label class="small" style="display:block; margin-top:8px;">Service ID</label>
-    <input type="text" id="cfgServiceId">
-    <label class="small" style="display:block; margin-top:8px;">Template ID</label>
-    <input type="text" id="cfgTemplateId">
+    <label class="small">Public Key</label><input type="text" id="cfgPublicKey">
+    <label class="small" style="display:block; margin-top:8px;">Service ID</label><input type="text" id="cfgServiceId">
+    <label class="small" style="display:block; margin-top:8px;">Template ID</label><input type="text" id="cfgTemplateId">
     <div class="fila" style="margin-top:12px;">
       <button class="verde" style="flex:1;" onclick="guardarConfigEmailJS()">💾 Guardar</button>
       <button class="amarillo" onclick="probarEmailJS()">🧪 Probar</button>
@@ -397,7 +402,7 @@
            onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarCantidad();}">
     <div class="fila" style="margin-top:10px;">
       <button class="verde" style="flex:1;" onclick="confirmarCantidad()">✔ Agregar</button>
-      <button class="gris" onclick="cerrarModalCantidad()">Cancelar</button>
+      <button class="gris" onclick="cerrarModalCantidad(false)">Cancelar</button>
     </div>
   </div>
 </div>
@@ -442,11 +447,12 @@
 
 <div class="modal-bg" id="modalVincularRapido">
   <div class="modal">
-    <h3>🔗 Código no encontrado</h3>
+    <h3>🔗 Vincular a un producto</h3>
     <div class="info-vinculo" style="background:#fff3e0; border-left-color:#e67e22;">
       Código: <b id="codigoRapido"></b>
     </div>
-    <input type="text" id="busquedaRapida" placeholder="Busca SKU…" oninput="buscarVincularRapido()">
+    <p class="small">Busca el producto al que pertenece este código.</p>
+    <input type="text" id="busquedaRapida" placeholder="Busca SKU o descripción…" oninput="buscarVincularRapido()">
     <div id="resultadosRapido" style="max-height:280px; overflow-y:auto; margin-top:8px;"></div>
     <button class="rojo" style="width:100%; margin-top:10px;" onclick="cerrarVincularRapido()">Cancelar</button>
   </div>
@@ -533,7 +539,7 @@
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
-const KEY_STATE   = 'sahagun_state_v12';
+const KEY_STATE   = 'sahagun_state_v13';
 const KEY_MAP     = 'sahagun_mappings_v2';
 const KEY_USERS   = 'sahagun_users_v1';
 const KEY_SESSION = 'sahagun_session_v1';
@@ -550,6 +556,7 @@ let pedido = [];
 let resultadosActuales = [];
 let indiceSel = -1;
 let productoSeleccionado = null;
+let ultimoProductoAgregado = null;   // Para repetir con Enter
 let modo = 'pedido';
 let tabActual = 'pedido';
 let vinculos = {};
@@ -573,7 +580,7 @@ document.getElementById('fecha').value = new Date().toLocaleDateString('es-MX');
 
 /* ============ HASH ============ */
 function hashPassword(str) {
-  const sal = 'sahagun_v12_salt';
+  const sal = 'sahagun_v13_salt';
   const s = sal + str + sal;
   let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
   for (let k = 0; k < 500; k++) {
@@ -965,7 +972,7 @@ function cambiarMiPassword() {
 
 /* ============ RESPALDO ============ */
 function exportarRespaldo() {
-  const data = { version: 7, exportado: new Date().toISOString(),
+  const data = { version: 8, exportado: new Date().toISOString(),
     productos, productosManuales, pedido, vinculos, usuarios, configEmailJS,
     inventarioBase, inventarioConteo, tienda: document.getElementById('tienda').value };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1019,21 +1026,16 @@ function claseUM(um) {
   if (um === 'CUBETA') return 'C5';
   return 'PZ';
 }
-/* *** SKU con / y () permitidos *** */
 function esSKU(str) {
   if (!str) return false;
   const s = String(str).trim();
   if (s.length < 3 || s.length > 40) return false;
   if (!/^[A-Z0-9.\-\/() ]+$/i.test(s)) return false;
   if (!/[0-9]/.test(s)) return false;
-  // Rechazar precios: número de 1-6 dígitos con decimal
   if (/^\$?[0-9]{1,6}(\.[0-9]{1,2})?$/.test(s)) return false;
   if (/^[0-9.]+%$/.test(s)) return false;
-  // Aceptar si tiene letras
   if (/[A-Z]/i.test(s)) return true;
-  // Aceptar si es todo numérico largo
   if (/^[0-9]{7,}$/.test(s)) return true;
-  // Aceptar si tiene /, -, ., ()
   if (/[.\-\/()]/.test(s) && s.length >= 5) return true;
   return false;
 }
@@ -1043,7 +1045,7 @@ function toast(msg, tipo) {
   t.classList.toggle('error', tipo === 'error');
   t.classList.add('show');
   clearTimeout(window._toastT);
-  window._toastT = setTimeout(() => t.classList.remove('show'), 2200);
+  window._toastT = setTimeout(() => t.classList.remove('show'), 2500);
 }
 function skuDeCodigo(codigo) {
   const v = vinculos[codigo];
@@ -1061,9 +1063,7 @@ function codigoDeSku(sku) {
 function migrarVinculos() {
   Object.keys(vinculos).forEach(cod => {
     const v = vinculos[cod];
-    if (typeof v === 'string') {
-      vinculos[cod] = { sku: v, creadoPor: '—', fecha: null };
-    }
+    if (typeof v === 'string') vinculos[cod] = { sku: v, creadoPor: '—', fecha: null };
   });
 }
 function fmtFecha(iso) {
@@ -1072,6 +1072,34 @@ function fmtFecha(iso) {
     const d = new Date(iso);
     return d.toLocaleDateString('es-MX') + ' ' + d.toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
   } catch(e) { return '—'; }
+}
+
+/* ============ BUSCAR PRODUCTO POR SKU (todas las fuentes) ============ */
+function buscarProductoPorSku(sku) {
+  if (!sku) return null;
+  const s = sku.toUpperCase();
+  // 1) PDF (promociones) — prioridad
+  let p = productos.find(x => x.sku.toUpperCase() === s);
+  if (p) return { ...p, fuente: 'PDF' };
+  // 2) Excel del sistema
+  p = inventarioBase.find(x => x.sku.toUpperCase() === s);
+  if (p) return {
+    sku: p.sku, descripcion: p.descripcion || '', precio: p.precio || 0,
+    um: detectarUM(p.sku), fuente: 'Sistema'
+  };
+  // 3) Manuales
+  p = productosManuales.find(x => x.sku.toUpperCase() === s);
+  if (p) return { ...p, fuente: 'Manual' };
+  return null;
+}
+function getExistencias(sku) {
+  const p = inventarioBase.find(x => x.sku.toUpperCase() === sku.toUpperCase());
+  return p ? p.exis : null;
+}
+function badgeFuente(fuente) {
+  if (fuente === 'PDF') return '<span class="badge badge-promo">🏷️ PROMO</span>';
+  if (fuente === 'Sistema') return '<span class="badge badge-sistema">📦 SISTEMA</span>';
+  return '<span class="badge badge-manual">✏️ MANUAL</span>';
 }
 
 /* ============ PERSISTENCIA ============ */
@@ -1189,24 +1217,21 @@ function parsearLinea(texto) {
   if (!limpio) return 'vacio';
   const partes = limpio.split(' ');
   let skuIndex = -1;
-  // Buscar el primer token que parezca SKU (probando combinaciones de 1 y 2 tokens)
+  let skuCompleto = null;
   for (let i = 0; i < Math.min(partes.length, 3); i++) {
-    if (esSKU(partes[i])) { skuIndex = i; break; }
-    // Probar unir con el siguiente (por si el SKU tiene espacio interno)
+    // Combinación de 2 tokens (ej: "HAR-511/ (HAR-535)")
     if (i + 1 < partes.length) {
       const juntos = partes[i] + ' ' + partes[i+1];
-      if (esSKU(juntos)) { skuIndex = i; break; }
+      if (/\/\s*\(/.test(juntos) && esSKU(juntos)) {
+        skuIndex = i; skuCompleto = juntos; break;
+      }
     }
+    if (esSKU(partes[i])) { skuIndex = i; break; }
   }
   if (skuIndex < 0) return 'sinSku';
-  // Buscar SKU completo (puede incluir paréntesis con espacio adentro)
-  let sku = partes[skuIndex];
-  // Detectar caso tipo "HAR-511/ (HAR-535)"
-  if (/\/$/.test(partes[skuIndex]) && partes[skuIndex+1] && /^\(/.test(partes[skuIndex+1])) {
-    sku = partes[skuIndex] + ' ' + partes[skuIndex+1];
-    skuIndex = skuIndex + 1; // consumimos 2 tokens
-  }
-  const resto = partes.slice(skuIndex + 1).join(' ');
+  let sku = skuCompleto || partes[skuIndex];
+  const consumo = skuCompleto ? 2 : 1;
+  const resto = partes.slice(skuIndex + consumo).join(' ');
   if (/^DESCRIPCI/i.test(resto)) return 'header';
   const precios = [...resto.matchAll(/\$?\s*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2})/g)]
     .map(m => parseFloat(m[1].replace(/,/g, ''))).filter(n => !isNaN(n));
@@ -1271,7 +1296,6 @@ async function procesarInventario(event) {
     const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-
     let headerIdx = -1;
     for (let i = 0; i < rows.length; i++) {
       const r = (rows[i] || []).map(x => String(x || '').toUpperCase().trim());
@@ -1279,10 +1303,7 @@ async function procesarInventario(event) {
       const tieneExis = r.some(h => h.includes('EXIS') || h.includes('EXIST') || h.includes('CANTIDAD'));
       if (tieneClave && tieneExis) { headerIdx = i; break; }
     }
-    if (headerIdx < 0) {
-      alert('No se encontraron encabezados (Clave, Descripción, Precio U., Exis).');
-      info.innerHTML = ''; return;
-    }
+    if (headerIdx < 0) { alert('No se encontraron encabezados (Clave, Descripción, Precio U., Exis).'); info.innerHTML = ''; return; }
     const header = rows[headerIdx].map(x => String(x || '').toUpperCase().trim());
     const findCol = (...keys) => {
       for (let i = 0; i < header.length; i++) {
@@ -1296,7 +1317,6 @@ async function procesarInventario(event) {
     const idxPrecio = findCol('PRECIO');
     const idxExis = findCol('EXIS', 'EXIST', 'CANTIDAD', 'INV ACTUAL');
     if (idxSku < 0 || idxExis < 0) { alert('Falta Clave o Exis.'); info.innerHTML = ''; return; }
-
     inventarioBase = [];
     const skusVistos = new Set();
     for (let i = headerIdx + 1; i < rows.length; i++) {
@@ -1328,11 +1348,7 @@ async function procesarInventario(event) {
     renderInvTopStats();
     renderInventario();
     toast(`✔ ${inventarioBase.length} productos`);
-  } catch (err) {
-    console.error(err);
-    alert('Error al leer: ' + err.message);
-    info.innerHTML = '';
-  }
+  } catch (err) { console.error(err); alert('Error al leer: ' + err.message); info.innerHTML = ''; }
 }
 function renderInvTopStats() {
   const el = document.getElementById('invStatsTop');
@@ -1589,56 +1605,39 @@ function procesarCodigoInv(codigo) {
   toast('❌ No está en inventario: ' + codigo, 'error');
 }
 
-/* ============ BÚSQUEDA GLOBAL PEDIDO ============ */
-function buscarGlobal(q) {
-  const ql = q.toLowerCase();
-  const encontrados = new Map();
+/* ============ PROCESAR CÓDIGO EN PEDIDO (FIX PRINCIPAL) ============ */
+function procesarCodigoEnPedido(codigo) {
+  const c = String(codigo).toUpperCase().trim();
+  if (!c) return;
 
-  // 1) Del PDF (promociones) — tienen prioridad
-  productos.forEach(p => {
-    if (p.sku.toLowerCase().includes(ql) || p.descripcion.toLowerCase().includes(ql)) {
-      encontrados.set(p.sku.toUpperCase(), { ...p, fuente: 'PDF' });
+  // 1) ¿Está vinculado? → ir al SKU
+  const skuVinc = skuDeCodigo(c);
+  if (skuVinc) {
+    const p = buscarProductoPorSku(skuVinc);
+    if (p) {
+      document.getElementById('busqueda').value = '';
+      abrirModalCantidad(p);
+      return;
     }
-  });
+    toast('⚠️ El SKU vinculado no existe en catálogo/Excel: ' + skuVinc, 'error');
+    return;
+  }
 
-  // 2) Del Excel del sistema (solo si no está ya del PDF)
-  inventarioBase.forEach(p => {
-    const key = p.sku.toUpperCase();
-    if (encontrados.has(key)) return;
-    if (p.sku.toLowerCase().includes(ql) || (p.descripcion || '').toLowerCase().includes(ql)) {
-      encontrados.set(key, {
-        sku: p.sku,
-        descripcion: p.descripcion || '',
-        precio: p.precio || 0,
-        um: detectarUM(p.sku),
-        fuente: 'Sistema'
-      });
-    }
-  });
+  // 2) ¿Es un SKU directo en cualquier fuente?
+  const p = buscarProductoPorSku(c);
+  if (p) {
+    document.getElementById('busqueda').value = '';
+    abrirModalCantidad(p);
+    return;
+  }
 
-  // 3) De manuales (solo si no está en ninguno)
-  productosManuales.forEach(p => {
-    const key = p.sku.toUpperCase();
-    if (encontrados.has(key)) return;
-    if (p.sku.toLowerCase().includes(ql) || p.descripcion.toLowerCase().includes(ql)) {
-      encontrados.set(key, { ...p, fuente: 'Manual' });
-    }
-  });
-
-  return Array.from(encontrados.values()).slice(0, 30);
-}
-function getExistencias(sku) {
-  const p = inventarioBase.find(x => x.sku.toUpperCase() === sku.toUpperCase());
-  return p ? p.exis : null;
-}
-function getPrecioInventario(sku) {
-  const p = inventarioBase.find(x => x.sku.toUpperCase() === sku.toUpperCase());
-  return p ? (p.precio || 0) : 0;
-}
-function badgeFuente(fuente) {
-  if (fuente === 'PDF') return '<span class="badge badge-promo">🏷️ PROMO</span>';
-  if (fuente === 'Sistema') return '<span class="badge badge-sistema">📦 SISTEMA</span>';
-  return '<span class="badge badge-manual">✏️ MANUAL</span>';
+  // 3) No encontrado en ningún lado
+  document.getElementById('busqueda').value = '';
+  document.getElementById('resultados').innerHTML = '';
+  resultadosActuales = []; indiceSel = -1;
+  document.getElementById('noEncontradoWrap').style.display = 'block';
+  document.getElementById('busqueda').value = c;
+  toast('❌ No encontrado: ' + c, 'error');
 }
 
 /* ============ BUSCAR (PEDIDO) ============ */
@@ -1653,7 +1652,27 @@ function buscar() {
     cont.innerHTML = '<p class="small">Sube el PDF o el Excel del sistema primero.</p>';
     return;
   }
-  resultadosActuales = buscarGlobal(q);
+  const encontrados = new Map();
+  productos.forEach(p => {
+    if (p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)) {
+      encontrados.set(p.sku.toUpperCase(), { ...p, fuente: 'PDF' });
+    }
+  });
+  inventarioBase.forEach(p => {
+    const key = p.sku.toUpperCase();
+    if (encontrados.has(key)) return;
+    if (p.sku.toLowerCase().includes(q) || (p.descripcion || '').toLowerCase().includes(q)) {
+      encontrados.set(key, { sku: p.sku, descripcion: p.descripcion || '', precio: p.precio || 0, um: detectarUM(p.sku), fuente: 'Sistema' });
+    }
+  });
+  productosManuales.forEach(p => {
+    const key = p.sku.toUpperCase();
+    if (encontrados.has(key)) return;
+    if (p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)) {
+      encontrados.set(key, { ...p, fuente: 'Manual' });
+    }
+  });
+  resultadosActuales = Array.from(encontrados.values()).slice(0, 30);
   if (!resultadosActuales.length) {
     cont.innerHTML = '<p class="small">Sin resultados.</p>';
     noEnc.style.display = 'block';
@@ -1684,12 +1703,14 @@ function teclaBusqueda(e) {
   if (e.key === 'Enter') {
     e.preventDefault();
     const q = document.getElementById('busqueda').value.trim();
-    if (!q) return;
+    if (!q) {
+      // Enter vacío: agregar el último producto de nuevo
+      if (ultimoProductoAgregado) {
+        abrirModalCantidad(ultimoProductoAgregado);
+      }
+      return;
+    }
     procesarCodigoEnPedido(q);
-    document.getElementById('busqueda').value = '';
-    document.getElementById('resultados').innerHTML = '';
-    document.getElementById('noEncontradoWrap').style.display = 'none';
-    resultadosActuales = []; indiceSel = -1;
     return;
   }
   if (!resultadosActuales.length) return;
@@ -1706,7 +1727,7 @@ function abrirModalCantidad(p) {
   const exist = getExistencias(p.sku);
   const fuente = p.fuente || 'PDF';
   const existHTML = (exist !== null)
-    ? `<span class="pill pill-existencias">📦 En existencia: ${exist} ${p.um || 'pzs'}</span>`
+    ? `<span class="pill pill-existencias">📦 En existencia: ${exist}</span>`
     : `<span class="pill pill-sin-datos">⚠️ Existencias: no hay datos</span>`;
   const fuenteHTML =
     fuente === 'PDF' ? `<span class="pill pill-promo">🏷️ EN PROMOCIÓN</span>` :
@@ -1729,35 +1750,51 @@ function abrirModalCantidad(p) {
   document.getElementById('modalCantidad').classList.add('activo');
   setTimeout(() => { inp.focus(); inp.select(); }, 100);
 }
-function cerrarModalCantidad() {
+function cerrarModalCantidad(keepSelection) {
   document.getElementById('modalCantidad').classList.remove('activo');
-  productoSeleccionado = null;
-  document.getElementById('busqueda').value = '';
-  document.getElementById('resultados').innerHTML = '';
-  document.getElementById('noEncontradoWrap').style.display = 'none';
-  resultadosActuales = []; indiceSel = -1;
-  if (tabActual === 'vincular') document.getElementById('inputCodigo').focus();
-  else document.getElementById('busqueda').focus();
+  if (!keepSelection) {
+    productoSeleccionado = null;
+    ultimoProductoAgregado = null;
+    document.getElementById('busqueda').value = '';
+    document.getElementById('resultados').innerHTML = '';
+    document.getElementById('noEncontradoWrap').style.display = 'none';
+    document.getElementById('hintScan').style.display = 'none';
+    resultadosActuales = []; indiceSel = -1;
+  }
+  // Focus en búsqueda
+  const inp = document.getElementById('busqueda');
+  inp.focus();
+  // Si hay texto, seleccionarlo todo para que el próximo escaneo lo reemplace
+  setTimeout(() => {
+    if (inp.value && document.activeElement === inp) {
+      inp.select();
+    }
+  }, 50);
 }
 function confirmarCantidad() {
   if (!productoSeleccionado) return;
   const cant = Math.max(1, parseInt(document.getElementById('inputCant').value) || 1);
+  const skuActual = productoSeleccionado.sku;
   agregarAlPedido(productoSeleccionado, cant);
-  toast(`✔ ${cant} × ${productoSeleccionado.sku}`);
-  cerrarModalCantidad();
+  toast(`✔ ${cant} × ${skuActual}`);
+  // Guardar el último producto agregado para repetición con Enter
+  ultimoProductoAgregado = { ...productoSeleccionado };
+  // Dejar el SKU en el buscador
+  document.getElementById('busqueda').value = skuActual;
+  // Cerrar el modal SIN limpiar
+  cerrarModalCantidad(true);
+  // Mostrar hint
+  document.getElementById('hintScan').style.display = 'block';
+  // Refrescar resultados mostrando el producto para que quede seleccionado
+  buscar();
 }
 function agregarAlPedido(p, cant) {
   const ex = pedido.find(x => x.sku === p.sku);
   if (ex) ex.cantidad += cant;
   else pedido.push({
-    sku: p.sku,
-    descripcion: p.descripcion,
-    precio: p.precio || 0,
-    um: p.um,
-    cantidad: cant,
-    fuente: p.fuente || 'PDF',
-    agregadoPor: usuarioLogueado,
-    fecha: new Date().toISOString()
+    sku: p.sku, descripcion: p.descripcion, precio: p.precio || 0,
+    um: p.um, cantidad: cant, fuente: p.fuente || 'PDF',
+    agregadoPor: usuarioLogueado, fecha: new Date().toISOString()
   });
   renderPedido();
   guardarEstado();
@@ -1792,9 +1829,85 @@ function guardarNuevoProducto() {
   guardarEstado();
   document.getElementById('modalNuevoProducto').classList.remove('activo');
   document.getElementById('noEncontradoWrap').style.display = 'none';
-  // Agregar directo al pedido
+  document.getElementById('busqueda').value = '';
   abrirModalCantidad(nuevo);
   toast('✔ Producto agregado');
+}
+
+/* ============ VINCULAR RÁPIDO (desde Pedido) ============ */
+function abrirVincularRapido(codigo) {
+  if (!codigo) return;
+  codigoRapidoPendiente = String(codigo).toUpperCase().trim();
+  document.getElementById('codigoRapido').textContent = codigoRapidoPendiente;
+  document.getElementById('busquedaRapida').value = '';
+  document.getElementById('resultadosRapido').innerHTML = '';
+  document.getElementById('modalVincularRapido').classList.add('activo');
+  buscarVincularRapido();
+  setTimeout(() => document.getElementById('busquedaRapida').focus(), 100);
+}
+function cerrarVincularRapido() {
+  document.getElementById('modalVincularRapido').classList.remove('activo');
+  codigoRapidoPendiente = null;
+}
+function buscarVincularRapido() {
+  const q = document.getElementById('busquedaRapida').value.toLowerCase().trim();
+  const cont = document.getElementById('resultadosRapido');
+  const todos = new Map();
+  productos.forEach(p => todos.set(p.sku.toUpperCase(), { ...p, _fuente: 'PDF' }));
+  inventarioBase.forEach(p => {
+    const k = p.sku.toUpperCase();
+    if (!todos.has(k)) todos.set(k, { sku: p.sku, descripcion: p.descripcion || '', precio: p.precio || 0, um: detectarUM(p.sku), _fuente: 'Sistema' });
+  });
+  productosManuales.forEach(p => {
+    const k = p.sku.toUpperCase();
+    if (!todos.has(k)) todos.set(k, { ...p, _fuente: 'Manual' });
+  });
+  const arr = Array.from(todos.values());
+  const res = q ? arr.filter(p => p.sku.toLowerCase().includes(q) || (p.descripcion||'').toLowerCase().includes(q)).slice(0, 30) : arr.slice(0, 30);
+  if (!res.length) { cont.innerHTML = '<p class="small">Sin resultados.</p>'; return; }
+  cont.innerHTML = '<table><thead><tr><th>SKU</th><th>Descripción</th><th></th></tr></thead><tbody>' +
+    res.map(p => {
+      const codActual = codigoDeSku(p.sku);
+      let celda, claseRow = '';
+      if (!codActual) {
+        celda = `<button class="verde" style="padding:6px 10px; font-size:12px;"
+                  onclick="asignarVincularRapido('${p.sku}')">🔗</button>`;
+      } else if (codActual === codigoRapidoPendiente) {
+        claseRow = 'ya-vinculado';
+        celda = `<div class="estado-ok">✔</div>`;
+      } else {
+        claseRow = 'ya-vinculado';
+        celda = `<div class="chip-codigo">${codActual}</div>
+                 <button class="amarillo" style="padding:4px 8px; font-size:11px;"
+                  onclick="asignarVincularRapido('${p.sku}', true)">🔄</button>`;
+      }
+      return `<tr class="resultado ${claseRow}"><td>${p.sku}</td><td>${p.descripcion}</td>
+        <td style="text-align:center;">${celda}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+function asignarVincularRapido(sku, esReemplazo) {
+  if (!codigoRapidoPendiente) return;
+  const codigo = codigoRapidoPendiente;
+  if (esReemplazo) { const cv = codigoDeSku(sku); if (cv) delete vinculos[cv]; }
+  if (vinculos[codigo]) delete vinculos[codigo];
+  vinculos[codigo] = { sku, creadoPor: usuarioLogueado, fecha: new Date().toISOString() };
+  localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
+  guardarEstado();
+  renderVinculos();
+  document.getElementById('modalVincularRapido').classList.remove('activo');
+  const prod = buscarProductoPorSku(sku);
+  document.getElementById('exitoFullscreenDetalle').innerHTML =
+    `<div style="opacity:.8; font-size:13px;">CÓDIGO</div>
+     <div style="font-size:18px; margin:8px 0;">${codigo}</div>
+     <div style="opacity:.8; font-size:13px;">ASIGNADO A</div>
+     <div style="font-size:18px; font-weight:bold; margin-top:8px;">${sku}</div>
+     ${prod ? '<div style="font-size:12px; opacity:.9; margin-top:6px;">' + prod.descripcion + '</div>' : ''}`;
+  document.getElementById('exitoFullscreen').classList.add('show');
+  setTimeout(() => {
+    document.getElementById('exitoFullscreen').classList.remove('show');
+    codigoRapidoPendiente = null;
+    if (prod) setTimeout(() => abrirModalCantidad(prod), 150);
+  }, 1400);
 }
 
 /* ============ VINCULAR ============ */
@@ -1809,7 +1922,7 @@ function capturarCodigo() {
     const v = vinculos[codigo];
     const creador = v && v.creadoPor ? v.creadoPor : '—';
     const fecha = v && v.fecha ? fmtFecha(v.fecha) : '—';
-    const prod = productos.find(p => p.sku.toUpperCase() === skuEx.toUpperCase());
+    const prod = buscarProductoPorSku(skuEx);
     document.getElementById('bannerCodigoYaVinculadoTexto').innerHTML = `
       <div>El código <b style="font-family:monospace;">${codigo}</b> ya está asignado a:</div>
       <div style="background:white; padding:10px; border-radius:6px; font-family:monospace; margin-top:6px;">
@@ -1858,7 +1971,6 @@ function buscarParaVincular() {
   const q = document.getElementById('busquedaSku').value.toLowerCase().trim();
   const cont = document.getElementById('resultadosSku');
   if (!productos.length && !inventarioBase.length) { cont.innerHTML = '<p class="small">Sin catálogo.</p>'; return; }
-  // Combinar productos del PDF + inventario + manuales para asignar vínculos
   const todos = new Map();
   productos.forEach(p => todos.set(p.sku.toUpperCase(), p));
   inventarioBase.forEach(p => {
@@ -1907,17 +2019,11 @@ function guardarVinculo(sku, esReemplazo) {
   const codigo = codigoPendiente;
   if (vinculos[codigo]) delete vinculos[codigo];
   if (esReemplazo) { const cv = codigoDeSku(sku); if (cv) delete vinculos[cv]; }
-  vinculos[codigo] = {
-    sku,
-    creadoPor: usuarioLogueado,
-    fecha: new Date().toISOString()
-  };
+  vinculos[codigo] = { sku, creadoPor: usuarioLogueado, fecha: new Date().toISOString() };
   localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
   guardarEstado();
   renderVinculos();
-  const prod = productos.find(p => p.sku === sku) ||
-               productosManuales.find(p => p.sku === sku) ||
-               inventarioBase.find(p => p.sku === sku);
+  const prod = buscarProductoPorSku(sku);
   document.getElementById('exitoFullscreenDetalle').innerHTML =
     `<div style="opacity:.8; font-size:13px;">CÓDIGO</div>
      <div style="font-size:18px; margin:8px 0;">${codigo}</div>
@@ -1941,8 +2047,8 @@ function renderVinculos() {
   const entries = Object.entries(vinculos).filter(([cod, val]) => {
     if (!filtro) return true;
     const sku = typeof val === 'string' ? val : val.sku;
-    const prod = productos.find(p => p.sku.toUpperCase() === sku.toUpperCase());
-    const desc = prod ? prod.descripcion.toLowerCase() : '';
+    const prod = buscarProductoPorSku(sku);
+    const desc = prod ? (prod.descripcion || '').toLowerCase() : '';
     return cod.toLowerCase().includes(filtro) || sku.toLowerCase().includes(filtro) || desc.includes(filtro);
   });
   document.getElementById('contadorVinculos').textContent = Object.keys(vinculos).length;
@@ -1953,9 +2059,7 @@ function renderVinculos() {
   tb.innerHTML = entries.map(([cod, val]) => {
     const sku = typeof val === 'string' ? val : val.sku;
     const creador = (typeof val === 'object' && val.creadoPor) ? '@' + val.creadoPor : '—';
-    const prod = productos.find(p => p.sku.toUpperCase() === sku.toUpperCase()) ||
-                 inventarioBase.find(p => p.sku.toUpperCase() === sku.toUpperCase()) ||
-                 productosManuales.find(p => p.sku.toUpperCase() === sku.toUpperCase());
+    const prod = buscarProductoPorSku(sku);
     const desc = prod ? prod.descripcion : '⚠️';
     return `<tr><td style="font-family:monospace;">${cod}</td><td>${sku}</td>
       <td class="small">${desc}</td>
@@ -1989,9 +2093,7 @@ function exportarVinculosExcel() {
     const sku = typeof val === 'string' ? val : val.sku;
     const creador = (typeof val === 'object' && val.creadoPor) ? val.creadoPor : '—';
     const fecha = (typeof val === 'object' && val.fecha) ? fmtFecha(val.fecha) : '—';
-    const prod = productos.find(p => p.sku.toUpperCase() === sku.toUpperCase()) ||
-                 inventarioBase.find(p => p.sku.toUpperCase() === sku.toUpperCase()) ||
-                 productosManuales.find(p => p.sku.toUpperCase() === sku.toUpperCase());
+    const prod = buscarProductoPorSku(sku);
     aoa.push([cod, sku, prod ? prod.descripcion : '', creador, fecha]);
   });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -2077,10 +2179,7 @@ function exportarExcel() {
 /* ============ ARRANQUE ============ */
 function arrancar() {
   document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('activo'));
-  try {
-    cargarConfig();
-    inicializarUsuarios();
-  } catch(e) { console.error('Init:', e); }
+  try { cargarConfig(); inicializarUsuarios(); } catch(e) { console.error('Init:', e); }
   const sesionUser = cargarSesion();
   if (sesionUser) {
     usuarioLogueado = sesionUser;
