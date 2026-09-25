@@ -27,6 +27,7 @@
   h3 { margin:0 0 10px 0; color:#1a3a6b; font-size:15px;}
   input, textarea, button, select { font-size:16px; padding:10px; box-sizing:border-box; font-family:inherit;}
   input[type=text], input[type=number], input[type=password], input[type=email] { width:100%; border:1px solid #ccc; border-radius:6px;}
+  select { width:100%; border:1px solid #ccc; border-radius:6px; background:white;}
   button { background:#1a5fbf; color:white; border:none; border-radius:6px; cursor:pointer; padding:10px 16px; font-weight:bold;}
   button:active { opacity:.7; }
   button:disabled { opacity:.5; cursor:not-allowed;}
@@ -49,6 +50,9 @@
   .small { font-size:12px; color:#666;}
   .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold; color:white;}
   .G { background:#2e86c1;} .QT { background:#8e44ad;} .C5 { background:#e67e22;} .PZ { background:#7f8c8d;}
+  .badge-promo { background:#e67e22; }
+  .badge-sistema { background:#1a5fbf; }
+  .badge-manual { background:#7f8c8d; }
   .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
            background:#1e8449; color:white; padding:10px 18px; border-radius:8px;
            box-shadow:0 4px 12px rgba(0,0,0,.25); opacity:0; transition:opacity .25s;
@@ -140,6 +144,18 @@
                   border-radius:10px; font-size:10px; font-weight:bold; margin-left:4px;}
   .chip-pending { display:inline-block; background:#e67e22; color:white; padding:2px 8px;
                   border-radius:10px; font-size:10px; font-weight:bold; margin-left:4px;}
+  /* Modal cantidad mejorado */
+  .modal-cant-header { background:#f0f7ff; padding:12px; border-radius:8px; margin-bottom:12px;
+                       border-left:4px solid #1a5fbf; }
+  .modal-cant-sku { font-weight:bold; font-size:15px; color:#1a3a6b; }
+  .modal-cant-desc { font-size:13px; color:#444; margin:4px 0 8px 0; }
+  .modal-cant-info { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+  .modal-cant-info .pill { padding:6px 10px; border-radius:8px; font-size:12px; font-weight:bold;}
+  .pill-promo { background:#fff3e0; color:#7a3d00; border:1px solid #e67e22;}
+  .pill-sistema { background:#e3f2fd; color:#1a3a6b; border:1px solid #1a5fbf;}
+  .pill-manual { background:#f0f0f0; color:#555; border:1px solid #999;}
+  .pill-existencias { background:#e8f5e9; color:#0d4d26; border:1px solid #1e8449;}
+  .pill-sin-datos { background:#fff3e0; color:#7a3d00; border:1px solid #e67e22;}
   @media(min-width:700px){
     body { max-width:900px; margin:0 auto; padding-bottom:20px;}
     .acciones-fijas { position:static; margin:10px; box-shadow:0 2px 6px rgba(0,0,0,.08); border-radius:10px;}
@@ -205,6 +221,13 @@
       <button class="camara" onclick="abrirCamara('buscar')">📷</button>
     </div>
     <div id="resultados"></div>
+    <div id="noEncontradoWrap" style="display:none; margin-top:12px;">
+      <div class="ayuda">
+        No se encontró el producto.
+        <button class="amarillo" style="margin-top:8px; font-size:13px; padding:8px 14px;"
+                onclick="abrirModalNuevoProducto()">✏️ Agregar como producto nuevo</button>
+      </div>
+    </div>
   </div>
   <div class="panel">
     <h3>3 · Pedido (<span id="contador">0</span>)</h3>
@@ -215,7 +238,7 @@
         <input type="text" id="fecha" readonly></div>
     </div>
     <table id="tablaPedido">
-      <thead><tr><th>Rex</th><th>Descripción</th><th>Cant</th><th>UM</th><th></th></tr></thead>
+      <thead><tr><th>Rex</th><th>Descripción</th><th>Cant</th><th>Origen</th><th></th></tr></thead>
       <tbody></tbody>
       <tfoot><tr><th colspan="2" style="text-align:right">Total:</th><th id="totalCant">0</th><th colspan="2" id="totalImp">$0</th></tr></tfoot>
     </table>
@@ -231,9 +254,8 @@
   <div class="panel">
     <h3>1 · Cargar inventario del sistema</h3>
     <div class="ayuda">
-      Sube el <b>Reporte de Inventario</b> (Excel del sistema). Se leerán las columnas
-      <b>Clave</b>, <b>Descripción</b>, <b>Precio U.</b> y <b>Exis</b>. Las existencias
-      negativas se conservan.
+      Sube el <b>Reporte de Inventario</b> (Excel del sistema). Sus existencias se usarán
+      en la pestaña <b>Pedido</b> para saber cuántas piezas tienes. Las existencias negativas se conservan.
     </div>
     <input type="file" id="invFileInput" accept=".xlsx,.xls,.csv" onchange="procesarInventario(event)">
     <div id="invInfo" class="small" style="margin-top:8px;"></div>
@@ -250,9 +272,7 @@
              oninput="invBuscar()" onkeydown="invTeclaBusqueda(event)">
       <button class="camara" onclick="abrirCamara('inventario')">📷</button>
     </div>
-    <p class="small" style="margin:6px 0 0 0;">
-      Escanea o busca. Ingresa la cantidad FÍSICA que hay.
-    </p>
+    <p class="small" style="margin:6px 0 0 0;">Escanea o busca. Ingresa la cantidad FÍSICA.</p>
     <div id="invResultados"></div>
   </div>
 
@@ -309,14 +329,15 @@
   <div class="panel">
     <h3>📋 Vínculos (<span id="contadorVinculos">0</span>)</h3>
     <div class="fila" style="margin-bottom:8px;">
-      <button class="verde" style="flex:1;" onclick="exportarVinculos()">📤 Exportar</button>
+      <button class="verde" style="flex:1;" onclick="exportarVinculos()">📤 JSON</button>
+      <button style="flex:1; background:#1e8449;" onclick="exportarVinculosExcel()">📊 Excel</button>
       <button style="flex:1;" onclick="document.getElementById('inputImportar').click()">📥 Importar</button>
       <input type="file" id="inputImportar" accept=".json" style="display:none" onchange="importarVinculos(event)">
     </div>
     <input type="text" id="filtroVinculos" placeholder="Filtrar…" oninput="renderVinculos()">
     <div class="tabla-scroll">
       <table id="tablaVinculos">
-        <thead><tr><th>Código</th><th>SKU</th><th>Descripción</th><th></th></tr></thead>
+        <thead><tr><th>Código</th><th>SKU</th><th>Descripción</th><th>Creado por</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -367,6 +388,7 @@
   <div class="modal"><h3>📷 Escanear</h3><div id="reader"></div>
     <button class="rojo" style="width:100%; margin-top:10px;" onclick="cerrarCamara()">Cancelar</button></div>
 </div>
+
 <div class="modal-bg" id="modalCantidad">
   <div class="modal">
     <div id="infoProducto" style="margin-bottom:12px;"></div>
@@ -379,6 +401,31 @@
     </div>
   </div>
 </div>
+
+<div class="modal-bg" id="modalNuevoProducto">
+  <div class="modal">
+    <h3>✏️ Nuevo producto</h3>
+    <div class="ayuda">Este producto se guardará en este dispositivo y quedará registrado quién lo agregó.</div>
+    <label class="small">SKU / Clave *</label>
+    <input type="text" id="npSku" placeholder="Ej. 99765600/REP" style="text-transform:uppercase;">
+    <label class="small" style="display:block; margin-top:10px;">Descripción *</label>
+    <input type="text" id="npDesc" placeholder="Ej. REJILLA ESCURRIDORA">
+    <label class="small" style="display:block; margin-top:10px;">Unidad de medida</label>
+    <select id="npUm">
+      <option value="PIEZA">PIEZA</option>
+      <option value="GALON">GALÓN</option>
+      <option value="LITRO">LITRO</option>
+      <option value="CUBETA">CUBETA</option>
+    </select>
+    <label class="small" style="display:block; margin-top:10px;">Precio *</label>
+    <input type="number" id="npPrecio" step="0.01" min="0" placeholder="0.00">
+    <div class="fila" style="margin-top:16px;">
+      <button class="verde" style="flex:1;" onclick="guardarNuevoProducto()">💾 Guardar</button>
+      <button class="gris" onclick="document.getElementById('modalNuevoProducto').classList.remove('activo')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalConteo">
   <div class="modal">
     <div id="conteoInfoProducto" style="margin-bottom:12px;"></div>
@@ -392,6 +439,7 @@
     </div>
   </div>
 </div>
+
 <div class="modal-bg" id="modalVincularRapido">
   <div class="modal">
     <h3>🔗 Código no encontrado</h3>
@@ -403,6 +451,7 @@
     <button class="rojo" style="width:100%; margin-top:10px;" onclick="cerrarVincularRapido()">Cancelar</button>
   </div>
 </div>
+
 <div class="modal-bg" id="modalUsuario">
   <div class="modal">
     <h3 id="modalUsuarioTitulo">➕ Agregar usuario</h3>
@@ -422,6 +471,7 @@
     </div>
   </div>
 </div>
+
 <div class="modal-bg" id="modalMiPassword">
   <div class="modal">
     <h3>🔑 Cambiar mi contraseña</h3>
@@ -483,17 +533,19 @@
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
-const KEY_STATE   = 'sahagun_state_v11';
-const KEY_MAP     = 'sahagun_mappings_v1';
+const KEY_STATE   = 'sahagun_state_v12';
+const KEY_MAP     = 'sahagun_mappings_v2';
 const KEY_USERS   = 'sahagun_users_v1';
 const KEY_SESSION = 'sahagun_session_v1';
 const KEY_CFG     = 'sahagun_config_v1';
 const KEY_OTP     = 'sahagun_otp_v1';
-const KEY_INV     = 'sahagun_inventario_v11';
+const KEY_INV     = 'sahagun_inventario_v12';
+const KEY_MANUAL  = 'sahagun_manuales_v1';
 const SESION_DIAS = 7;
 const OTP_MINUTOS = 10;
 
 let productos = [];
+let productosManuales = [];
 let pedido = [];
 let resultadosActuales = [];
 let indiceSel = -1;
@@ -521,7 +573,7 @@ document.getElementById('fecha').value = new Date().toLocaleDateString('es-MX');
 
 /* ============ HASH ============ */
 function hashPassword(str) {
-  const sal = 'sahagun_v11_salt';
+  const sal = 'sahagun_v12_salt';
   const s = sal + str + sal;
   let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
   for (let k = 0; k < 500; k++) {
@@ -538,20 +590,15 @@ function hashPassword(str) {
   return a + b + a + b;
 }
 
-/* ============ CONFIG EMAILJS (v3 syntax) ============ */
+/* ============ CONFIG EMAILJS ============ */
 function cargarConfig() {
-  try {
-    const raw = localStorage.getItem(KEY_CFG);
-    if (raw) configEmailJS = JSON.parse(raw);
-  } catch(e) {}
+  try { const raw = localStorage.getItem(KEY_CFG); if (raw) configEmailJS = JSON.parse(raw); } catch(e) {}
   aplicarEmailJSInit();
 }
 function aplicarEmailJSInit() {
   const pk = (configEmailJS.publicKey || '').trim();
   if (!pk || typeof emailjs === 'undefined') return;
-  try { emailjs.init(pk); } catch(e) {
-    try { emailjs.init({ publicKey: pk }); } catch(e2) {}
-  }
+  try { emailjs.init(pk); } catch(e) { try { emailjs.init({ publicKey: pk }); } catch(e2) {} }
 }
 function guardarConfigEmailJS() {
   const pk = (document.getElementById('cfgPublicKey').value || '').trim();
@@ -567,29 +614,24 @@ function actualizarEstadoEmailJS() {
   const el = document.getElementById('estadoEmailJS');
   if (!el) return;
   if (configEmailJS.publicKey && configEmailJS.serviceId && configEmailJS.templateId) {
-    el.innerHTML = '✅ Configurado.';
-    el.style.background = '#e8f5e9';
+    el.innerHTML = '✅ Configurado.'; el.style.background = '#e8f5e9';
   } else {
-    el.innerHTML = '⚠️ Faltan datos.';
-    el.style.background = '#fff3e0';
+    el.innerHTML = '⚠️ Faltan datos.'; el.style.background = '#fff3e0';
   }
 }
 async function probarEmailJS() {
   if (!configEmailJS.publicKey || !configEmailJS.serviceId || !configEmailJS.templateId) {
     alert('Primero guarda los 3 datos.'); return;
   }
-  const correo = prompt('Correo de prueba:');
-  if (!correo) return;
+  const correo = prompt('Correo de prueba:'); if (!correo) return;
   aplicarEmailJSInit();
   try {
     await emailjs.send(configEmailJS.serviceId, configEmailJS.templateId, {
       to_email: correo, to_name: 'Prueba', user_name: 'prueba',
       otp_code: '123456', minutes: 10, app_name: 'Sahagún Pedidos'
     });
-    alert('✅ Enviado. Revisa tu correo y SPAM.');
-  } catch (err) {
-    alert('❌ Error: ' + (err?.text || err?.message || JSON.stringify(err)));
-  }
+    alert('✅ Enviado.');
+  } catch (err) { alert('❌ ' + (err?.text || err?.message || JSON.stringify(err))); }
 }
 
 /* ============ USUARIOS ============ */
@@ -614,8 +656,7 @@ function reiniciarUsuarios() {
   if (prompt('Escribe BORRAR:') !== 'BORRAR') return;
   usuarios = {};
   usuarios['admin'] = {
-    nombre: 'Administrador', email: '',
-    hash: hashPassword('admin123'),
+    nombre: 'Administrador', email: '', hash: hashPassword('admin123'),
     permisos: { pedido: true, inventario: true, vincular: true, ajustes: true },
     creado: new Date().toISOString(), primerLogin: true
   };
@@ -640,7 +681,6 @@ function cargarSesion() {
   } catch(e) { return null; }
 }
 function borrarSesion() { try { localStorage.removeItem(KEY_SESSION); } catch(e) {} }
-
 function intentarLogin() {
   const u = document.getElementById('loginUsuario').value.trim().toLowerCase();
   const p = document.getElementById('loginPassword').value;
@@ -678,10 +718,7 @@ function abrirRecuperar() {
   volverRecPaso1();
   document.getElementById('modalRecuperar').classList.add('activo');
 }
-function cerrarRecuperar() {
-  document.getElementById('modalRecuperar').classList.remove('activo');
-  detenerTimerOTP();
-}
+function cerrarRecuperar() { document.getElementById('modalRecuperar').classList.remove('activo'); detenerTimerOTP(); }
 function volverRecPaso1() {
   document.getElementById('recPaso1').style.display = 'block';
   document.getElementById('recPaso2').style.display = 'none';
@@ -700,8 +737,7 @@ function enviarCodigoOTP() {
     document.getElementById('recPaso1').style.display = 'none';
     document.getElementById('recPaso2').style.display = 'block';
     document.querySelectorAll('#otpInputs input').forEach(i => i.value = '');
-    otpActual = null;
-    iniciarTimerOTP();
+    otpActual = null; iniciarTimerOTP();
     alert('Si el correo está registrado, recibirás un código.');
     return;
   }
@@ -710,20 +746,18 @@ function enviarCodigoOTP() {
   const expira = Date.now() + OTP_MINUTOS * 60 * 1000;
   otpActual = { codigo, usuario: username, expira, email };
   try { localStorage.setItem(KEY_OTP, JSON.stringify(otpActual)); } catch(e) {}
-
   document.getElementById('emailMostrado').textContent = email;
   document.getElementById('recPaso1').style.display = 'none';
   document.getElementById('recPaso2').style.display = 'block';
   document.querySelectorAll('#otpInputs input').forEach(i => i.value = '');
   setTimeout(() => document.querySelector('#otpInputs input')?.focus(), 100);
   iniciarTimerOTP();
-
   aplicarEmailJSInit();
   emailjs.send(configEmailJS.serviceId, configEmailJS.templateId, {
     to_email: email, to_name: userData.nombre || username, user_name: username,
     otp_code: codigo, minutes: OTP_MINUTOS, app_name: 'Sahagún Pedidos'
-  }).then(() => toast('📧 Código enviado'))
-    .catch(err => alert('❌ Error: ' + (err?.text || err?.message || JSON.stringify(err))));
+  }).then(() => toast('📧 Enviado'))
+    .catch(err => alert('❌ ' + (err?.text || err?.message || JSON.stringify(err))));
 }
 function iniciarTimerOTP() {
   detenerTimerOTP();
@@ -745,8 +779,8 @@ function verificarOTP() {
   const codigo = Array.from(inputs).map(i => i.value).join('');
   const nueva = document.getElementById('nuevaPassOTP').value;
   const nueva2 = document.getElementById('nuevaPassOTP2').value;
-  if (codigo.length !== 6) { alert('Ingresa los 6 dígitos.'); return; }
-  if (!otpActual) { alert('❌ Código incorrecto.'); return; }
+  if (codigo.length !== 6) { alert('6 dígitos.'); return; }
+  if (!otpActual) { alert('❌ Incorrecto.'); return; }
   if (Date.now() > otpActual.expira) { alert('⏱ Expirado.'); return; }
   if (codigo !== otpActual.codigo) { alert('❌ Incorrecto.'); return; }
   if (nueva.length < 4) { alert('Mínimo 4.'); return; }
@@ -774,7 +808,7 @@ function entrarApp() {
   document.getElementById('cfgTemplateId').value = configEmailJS.templateId || '';
   actualizarEstadoEmailJS();
   aplicarPermisos();
-  if (productos.length === 0) cargarEstado();
+  if (productos.length === 0 && productosManuales.length === 0) cargarEstado();
   else { renderPedido(); renderVinculos(); }
   cargarInventarioGuardado();
   const disp = ['pedido','inventario','vincular','ajustes'].filter(t => u.permisos[t]);
@@ -848,9 +882,7 @@ function abrirModalUsuario(username) {
     const u = usuarios[username];
     document.getElementById('modalUsuarioTitulo').textContent = '✏️ Editar';
     inpU.value = username; inpU.disabled = true;
-    inpN.value = u.nombre || '';
-    inpE.value = u.email || '';
-    inpP.value = '';
+    inpN.value = u.nombre || ''; inpE.value = u.email || ''; inpP.value = '';
     lblP.textContent = 'Nueva contraseña (vacío = no cambiar)';
     perm.pedido.checked = !!u.permisos.pedido;
     perm.inventario.checked = !!u.permisos.inventario;
@@ -933,8 +965,8 @@ function cambiarMiPassword() {
 
 /* ============ RESPALDO ============ */
 function exportarRespaldo() {
-  const data = { version: 6, exportado: new Date().toISOString(),
-    productos, pedido, vinculos, usuarios, configEmailJS,
+  const data = { version: 7, exportado: new Date().toISOString(),
+    productos, productosManuales, pedido, vinculos, usuarios, configEmailJS,
     inventarioBase, inventarioConteo, tienda: document.getElementById('tienda').value };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -955,8 +987,9 @@ function importarRespaldo(event) {
       const data = JSON.parse(e.target.result);
       if (!confirm('⚠️ Reemplazará TODO. ¿Continuar?')) return;
       if (data.productos) productos = data.productos;
+      if (data.productosManuales) productosManuales = data.productosManuales;
       if (data.pedido) pedido = data.pedido;
-      if (data.vinculos) vinculos = data.vinculos;
+      if (data.vinculos) { vinculos = data.vinculos; migrarVinculos(); }
       if (data.usuarios) { usuarios = data.usuarios; guardarUsuarios(); }
       if (data.configEmailJS) { configEmailJS = data.configEmailJS; localStorage.setItem(KEY_CFG, JSON.stringify(configEmailJS)); }
       if (data.inventarioBase) inventarioBase = data.inventarioBase;
@@ -986,24 +1019,24 @@ function claseUM(um) {
   if (um === 'CUBETA') return 'C5';
   return 'PZ';
 }
-/* *** NUEVA VALIDACIÓN DE SKU *** */
+/* *** SKU con / y () permitidos *** */
 function esSKU(str) {
   if (!str) return false;
   const s = String(str).trim();
-  if (s.length < 4 || s.length > 30) return false;
-  if (!/^[A-Z0-9.\-]+$/i.test(s)) return false;
+  if (s.length < 3 || s.length > 40) return false;
+  if (!/^[A-Z0-9.\-\/() ]+$/i.test(s)) return false;
   if (!/[0-9]/.test(s)) return false;
-  // Rechazar si parece precio: 1 a 6 dígitos con decimal exacto
+  // Rechazar precios: número de 1-6 dígitos con decimal
   if (/^\$?[0-9]{1,6}(\.[0-9]{1,2})?$/.test(s)) return false;
   if (/^[0-9.]+%$/.test(s)) return false;
-  // Si tiene letras → aceptar
+  // Aceptar si tiene letras
   if (/[A-Z]/i.test(s)) return true;
-  // Si es todo numérico → aceptar solo si es largo (>= 8 dígitos) o contiene guion/punto
-  if (/^[0-9]{8,}$/.test(s)) return true;
-  if (/[.\-]/.test(s) && /[0-9]/.test(s) && s.length >= 6) return true;
+  // Aceptar si es todo numérico largo
+  if (/^[0-9]{7,}$/.test(s)) return true;
+  // Aceptar si tiene /, -, ., ()
+  if (/[.\-\/()]/.test(s) && s.length >= 5) return true;
   return false;
 }
-/* *** FIN *** */
 function toast(msg, tipo) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -1012,22 +1045,45 @@ function toast(msg, tipo) {
   clearTimeout(window._toastT);
   window._toastT = setTimeout(() => t.classList.remove('show'), 2200);
 }
+function skuDeCodigo(codigo) {
+  const v = vinculos[codigo];
+  if (!v) return null;
+  return typeof v === 'string' ? v : v.sku;
+}
 function codigoDeSku(sku) {
   const s = sku.toUpperCase();
-  const entry = Object.entries(vinculos).find(([cod, val]) => val.toUpperCase() === s);
+  const entry = Object.entries(vinculos).find(([_, val]) => {
+    const vSku = (typeof val === 'string' ? val : val.sku).toUpperCase();
+    return vSku === s;
+  });
   return entry ? entry[0] : null;
 }
-function skuDeCodigo(codigo) { return vinculos[codigo] || null; }
+function migrarVinculos() {
+  Object.keys(vinculos).forEach(cod => {
+    const v = vinculos[cod];
+    if (typeof v === 'string') {
+      vinculos[cod] = { sku: v, creadoPor: '—', fecha: null };
+    }
+  });
+}
+function fmtFecha(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('es-MX') + ' ' + d.toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+  } catch(e) { return '—'; }
+}
 
 /* ============ PERSISTENCIA ============ */
 function guardarEstado() {
   try {
     localStorage.setItem(KEY_STATE, JSON.stringify({
-      productos, pedido, vinculos,
+      productos, productosManuales, pedido, vinculos,
       tienda: document.getElementById('tienda').value,
       fecha: new Date().toISOString()
     }));
     localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
+    localStorage.setItem(KEY_MANUAL, JSON.stringify(productosManuales));
   } catch(e) {}
 }
 function cargarEstado() {
@@ -1044,12 +1100,15 @@ function cargarEstado() {
           document.getElementById('btnOlvidarWrap').style.display = 'block';
         }
       }
+      if (Array.isArray(obj.productosManuales)) productosManuales = obj.productosManuales;
       if (Array.isArray(obj.pedido)) pedido = obj.pedido;
-      if (obj.vinculos) vinculos = obj.vinculos;
+      if (obj.vinculos) { vinculos = obj.vinculos; migrarVinculos(); }
       if (typeof obj.tienda === 'string') document.getElementById('tienda').value = obj.tienda;
     } else {
       const mapRaw = localStorage.getItem(KEY_MAP);
-      if (mapRaw) vinculos = JSON.parse(mapRaw);
+      if (mapRaw) { vinculos = JSON.parse(mapRaw); migrarVinculos(); }
+      const manRaw = localStorage.getItem(KEY_MANUAL);
+      if (manRaw) productosManuales = JSON.parse(manRaw);
     }
   } catch(e) {}
   renderPedido();
@@ -1130,11 +1189,23 @@ function parsearLinea(texto) {
   if (!limpio) return 'vacio';
   const partes = limpio.split(' ');
   let skuIndex = -1;
+  // Buscar el primer token que parezca SKU (probando combinaciones de 1 y 2 tokens)
   for (let i = 0; i < Math.min(partes.length, 3); i++) {
     if (esSKU(partes[i])) { skuIndex = i; break; }
+    // Probar unir con el siguiente (por si el SKU tiene espacio interno)
+    if (i + 1 < partes.length) {
+      const juntos = partes[i] + ' ' + partes[i+1];
+      if (esSKU(juntos)) { skuIndex = i; break; }
+    }
   }
   if (skuIndex < 0) return 'sinSku';
-  const sku = partes[skuIndex];
+  // Buscar SKU completo (puede incluir paréntesis con espacio adentro)
+  let sku = partes[skuIndex];
+  // Detectar caso tipo "HAR-511/ (HAR-535)"
+  if (/\/$/.test(partes[skuIndex]) && partes[skuIndex+1] && /^\(/.test(partes[skuIndex+1])) {
+    sku = partes[skuIndex] + ' ' + partes[skuIndex+1];
+    skuIndex = skuIndex + 1; // consumimos 2 tokens
+  }
   const resto = partes.slice(skuIndex + 1).join(' ');
   if (/^DESCRIPCI/i.test(resto)) return 'header';
   const precios = [...resto.matchAll(/\$?\s*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2})/g)]
@@ -1155,9 +1226,7 @@ function parsearLinea(texto) {
 function guardarInvBase() {
   try {
     localStorage.setItem(KEY_INV, JSON.stringify({
-      base: inventarioBase,
-      conteo: inventarioConteo,
-      fecha: new Date().toISOString()
+      base: inventarioBase, conteo: inventarioConteo, fecha: new Date().toISOString()
     }));
   } catch(e) {}
 }
@@ -1212,8 +1281,7 @@ async function procesarInventario(event) {
     }
     if (headerIdx < 0) {
       alert('No se encontraron encabezados (Clave, Descripción, Precio U., Exis).');
-      info.innerHTML = '';
-      return;
+      info.innerHTML = ''; return;
     }
     const header = rows[headerIdx].map(x => String(x || '').toUpperCase().trim());
     const findCol = (...keys) => {
@@ -1227,45 +1295,34 @@ async function procesarInventario(event) {
     const idxDesc = findCol('DESCRIPCI');
     const idxPrecio = findCol('PRECIO');
     const idxExis = findCol('EXIS', 'EXIST', 'CANTIDAD', 'INV ACTUAL');
-
-    if (idxSku < 0 || idxExis < 0) {
-      alert('Falta Clave o Exis.'); info.innerHTML = ''; return;
-    }
+    if (idxSku < 0 || idxExis < 0) { alert('Falta Clave o Exis.'); info.innerHTML = ''; return; }
 
     inventarioBase = [];
     const skusVistos = new Set();
-
     for (let i = headerIdx + 1; i < rows.length; i++) {
       const r = rows[i] || [];
       let skuRaw = r[idxSku];
       if (skuRaw === null || skuRaw === undefined) continue;
       let sku = String(skuRaw).trim();
       if (!sku) continue;
-      // Quitar guiones bajos o espacios raros
-      sku = sku.replace(/\s+/g, '').toUpperCase();
+      sku = sku.replace(/\s+/g, ' ').toUpperCase();
       if (/^(TOTAL|SUBTOTAL|CLAVE|SKU)$/i.test(sku)) continue;
-
       const descripcion = idxDesc >= 0 ? String(r[idxDesc] || '').trim() : '';
       const precioRaw = idxPrecio >= 0 ? r[idxPrecio] : 0;
       const precio = parseFloat(String(precioRaw).replace(/[^0-9.\-]/g, '')) || 0;
       const exisRaw = r[idxExis];
       const exis = parseFloat(String(exisRaw).replace(/[^0-9.\-]/g, '')) || 0;
-
-      // Permitir duplicados: si ya existe el SKU, sumar existencias (puede ser parte de un conteo por lotes)
       if (skusVistos.has(sku)) {
         const prev = inventarioBase.find(p => p.sku === sku);
         if (prev) prev.exis += exis;
         continue;
       }
       skusVistos.add(sku);
-
       inventarioBase.push({ sku, descripcion, precio, exis });
     }
-
     inventarioConteo = {};
     guardarInvBase();
     info.innerHTML = `✔ <b>${inventarioBase.length}</b> productos cargados · Cols: SKU[${idxSku}] Desc[${idxDesc}] Precio[${idxPrecio}] Exis[${idxExis}]`;
-
     document.getElementById('invBtnOlvidarWrap').style.display = 'block';
     document.getElementById('invPanelContar').style.display = 'block';
     renderInvTopStats();
@@ -1390,7 +1447,6 @@ function renderInventario() {
   if (!tb) return;
   const panelRes = document.getElementById('invPanelResumen');
   const panelAcc = document.getElementById('invAcciones');
-
   const contados = Object.keys(inventarioConteo).length;
   if (!contados) {
     if (panelRes) panelRes.style.display = 'none';
@@ -1399,17 +1455,13 @@ function renderInventario() {
   }
   if (panelRes) panelRes.style.display = 'block';
   if (panelAcc) panelAcc.style.display = 'flex';
-
-  // Stats generales
   let sobrantes = 0, faltantes = 0, cuadran = 0, negEnSistema = 0;
   let totalDifMxn = 0, totalDifPiezas = 0;
   const rows = inventarioBase.filter(p => inventarioConteo[p.sku] !== undefined);
   rows.forEach(p => {
     const c = inventarioConteo[p.sku];
     const d = c - p.exis;
-    if (d > 0) sobrantes++;
-    else if (d < 0) faltantes++;
-    else cuadran++;
+    if (d > 0) sobrantes++; else if (d < 0) faltantes++; else cuadran++;
     if (p.exis < 0) negEnSistema++;
     totalDifMxn += d * (p.precio || 0);
     totalDifPiezas += d;
@@ -1426,16 +1478,12 @@ function renderInventario() {
     <div class="inv-stat ${totalDifPiezas > 0 ? 'ok' : (totalDifPiezas < 0 ? 'err' : '')}">
       <div class="num">${totalDifPiezas > 0 ? '+' : ''}${totalDifPiezas}</div><div class="lbl">Dif piezas</div>
     </div>`;
-
-  // Filtrar tabla
   const filtro = (document.getElementById('invFiltro').value || '').toLowerCase().trim();
   let visibles = rows.filter(p => !filtro || p.sku.toLowerCase().includes(filtro) || (p.descripcion || '').toLowerCase().includes(filtro));
-
   if (!visibles.length) {
     tb.innerHTML = '<tr><td colspan="6" class="small" style="text-align:center; padding:20px;">Sin resultados</td></tr>';
     return;
   }
-
   tb.innerHTML = visibles.map(p => {
     const c = inventarioConteo[p.sku];
     const d = c - p.exis;
@@ -1473,10 +1521,8 @@ function exportarInventario() {
   aoa.push(['Usuario', usuarioLogueado || '']);
   aoa.push([]);
   aoa.push(['Clave', 'Descripción', 'Debe haber', 'Contado', 'Diferencia', 'Precio U.', 'Dif $']);
-
   let totalDifMxn = 0, totalDifPz = 0;
   const rows = inventarioBase.filter(p => inventarioConteo[p.sku] !== undefined);
-  // Ordenar: primero negativos en sistema, luego faltantes, luego sobrantes, luego ok
   rows.sort((a, b) => {
     const da = inventarioConteo[a.sku] - a.exis;
     const db = inventarioConteo[b.sku] - b.exis;
@@ -1484,7 +1530,6 @@ function exportarInventario() {
     if (b.exis < 0 && a.exis >= 0) return 1;
     return da - db;
   });
-
   rows.forEach(p => {
     const c = inventarioConteo[p.sku];
     const d = c - p.exis;
@@ -1493,10 +1538,8 @@ function exportarInventario() {
     totalDifPz += d;
     aoa.push([p.sku, p.descripcion || '', p.exis, c, d, p.precio || 0, difMxn]);
   });
-
   aoa.push([]);
   aoa.push(['', '', '', 'TOTALES', totalDifPz, '', totalDifMxn]);
-
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = [{ wch: 18 }, { wch: 45 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
   const wb = XLSX.utils.book_new();
@@ -1546,103 +1589,87 @@ function procesarCodigoInv(codigo) {
   toast('❌ No está en inventario: ' + codigo, 'error');
 }
 
-/* ============ PEDIDO ============ */
-function procesarCodigoEnPedido(codigo) {
-  const c = String(codigo).toUpperCase().trim();
-  const skuVinc = skuDeCodigo(c);
-  if (skuVinc) {
-    const p = productos.find(x => x.sku.toUpperCase() === skuVinc.toUpperCase());
-    if (p) { abrirModalCantidad(p); return; }
-    toast('⚠️ SKU vinculado no en catálogo', 'error');
-    return;
-  }
-  const p = productos.find(x => x.sku.toUpperCase() === c);
-  if (p) { abrirModalCantidad(p); return; }
-  toast('❌ No encontrado: ' + c, 'error');
-  setTimeout(() => abrirVincularRapido(c), 400);
+/* ============ BÚSQUEDA GLOBAL PEDIDO ============ */
+function buscarGlobal(q) {
+  const ql = q.toLowerCase();
+  const encontrados = new Map();
+
+  // 1) Del PDF (promociones) — tienen prioridad
+  productos.forEach(p => {
+    if (p.sku.toLowerCase().includes(ql) || p.descripcion.toLowerCase().includes(ql)) {
+      encontrados.set(p.sku.toUpperCase(), { ...p, fuente: 'PDF' });
+    }
+  });
+
+  // 2) Del Excel del sistema (solo si no está ya del PDF)
+  inventarioBase.forEach(p => {
+    const key = p.sku.toUpperCase();
+    if (encontrados.has(key)) return;
+    if (p.sku.toLowerCase().includes(ql) || (p.descripcion || '').toLowerCase().includes(ql)) {
+      encontrados.set(key, {
+        sku: p.sku,
+        descripcion: p.descripcion || '',
+        precio: p.precio || 0,
+        um: detectarUM(p.sku),
+        fuente: 'Sistema'
+      });
+    }
+  });
+
+  // 3) De manuales (solo si no está en ninguno)
+  productosManuales.forEach(p => {
+    const key = p.sku.toUpperCase();
+    if (encontrados.has(key)) return;
+    if (p.sku.toLowerCase().includes(ql) || p.descripcion.toLowerCase().includes(ql)) {
+      encontrados.set(key, { ...p, fuente: 'Manual' });
+    }
+  });
+
+  return Array.from(encontrados.values()).slice(0, 30);
 }
-function abrirVincularRapido(codigo) {
-  codigoRapidoPendiente = codigo;
-  document.getElementById('codigoRapido').textContent = codigo;
-  document.getElementById('busquedaRapida').value = '';
-  document.getElementById('resultadosRapido').innerHTML = '';
-  document.getElementById('modalVincularRapido').classList.add('activo');
-  buscarVincularRapido();
-  setTimeout(() => document.getElementById('busquedaRapida').focus(), 100);
+function getExistencias(sku) {
+  const p = inventarioBase.find(x => x.sku.toUpperCase() === sku.toUpperCase());
+  return p ? p.exis : null;
 }
-function cerrarVincularRapido() {
-  document.getElementById('modalVincularRapido').classList.remove('activo');
-  codigoRapidoPendiente = null;
+function getPrecioInventario(sku) {
+  const p = inventarioBase.find(x => x.sku.toUpperCase() === sku.toUpperCase());
+  return p ? (p.precio || 0) : 0;
 }
-function buscarVincularRapido() {
-  const q = document.getElementById('busquedaRapida').value.toLowerCase().trim();
-  const cont = document.getElementById('resultadosRapido');
-  if (!productos.length) { cont.innerHTML = '<p class="small">Sin catálogo.</p>'; return; }
-  const res = q
-    ? productos.filter(p => p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)).slice(0, 30)
-    : productos.slice(0, 30);
-  if (!res.length) { cont.innerHTML = '<p class="small">Sin resultados.</p>'; return; }
-  cont.innerHTML = '<table><thead><tr><th>SKU</th><th>Descripción</th><th></th></tr></thead><tbody>' +
-    res.map(p => {
-      const codActual = codigoDeSku(p.sku);
-      let celda, claseRow = '';
-      if (!codActual) {
-        celda = `<button class="verde" style="padding:6px 10px; font-size:12px;"
-                  onclick="asignarVincularRapido('${p.sku}')">🔗</button>`;
-      } else if (codActual === codigoRapidoPendiente) {
-        claseRow = 'ya-vinculado';
-        celda = `<div class="estado-ok">✔</div>`;
-      } else {
-        claseRow = 'ya-vinculado';
-        celda = `<div class="chip-codigo">${codActual}</div>
-                 <button class="amarillo" style="padding:4px 8px; font-size:11px;"
-                  onclick="asignarVincularRapido('${p.sku}', true)">🔄</button>`;
-      }
-      return `<tr class="resultado ${claseRow}"><td>${p.sku}</td><td>${p.descripcion}</td>
-        <td style="text-align:center;">${celda}</td></tr>`;
-    }).join('') + '</tbody></table>';
-}
-function asignarVincularRapido(sku, esReemplazo) {
-  if (!codigoRapidoPendiente) return;
-  const codigo = codigoRapidoPendiente;
-  if (esReemplazo) { const cv = codigoDeSku(sku); if (cv) delete vinculos[cv]; }
-  if (vinculos[codigo]) delete vinculos[codigo];
-  vinculos[codigo] = sku;
-  localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
-  guardarEstado();
-  renderVinculos();
-  document.getElementById('modalVincularRapido').classList.remove('activo');
-  const prod = productos.find(p => p.sku === sku);
-  document.getElementById('exitoFullscreenDetalle').innerHTML =
-    `<div style="opacity:.8; font-size:13px;">CÓDIGO</div>
-     <div style="font-size:18px; margin:8px 0;">${codigo}</div>
-     <div style="opacity:.8; font-size:13px;">ASIGNADO A</div>
-     <div style="font-size:18px; font-weight:bold; margin-top:8px;">${sku}</div>`;
-  document.getElementById('exitoFullscreen').classList.add('show');
-  setTimeout(() => {
-    document.getElementById('exitoFullscreen').classList.remove('show');
-    codigoRapidoPendiente = null;
-    if (prod) setTimeout(() => abrirModalCantidad(prod), 150);
-  }, 1400);
+function badgeFuente(fuente) {
+  if (fuente === 'PDF') return '<span class="badge badge-promo">🏷️ PROMO</span>';
+  if (fuente === 'Sistema') return '<span class="badge badge-sistema">📦 SISTEMA</span>';
+  return '<span class="badge badge-manual">✏️ MANUAL</span>';
 }
 
+/* ============ BUSCAR (PEDIDO) ============ */
 function buscar() {
   const q = document.getElementById('busqueda').value.toLowerCase().trim();
   const cont = document.getElementById('resultados');
+  const noEnc = document.getElementById('noEncontradoWrap');
   indiceSel = -1;
+  noEnc.style.display = 'none';
   if (!q) { cont.innerHTML = ''; resultadosActuales = []; return; }
-  if (!productos.length) { cont.innerHTML = '<p class="small">Sube el PDF.</p>'; return; }
-  resultadosActuales = productos.filter(p =>
-    p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)
-  ).slice(0, 30);
-  if (!resultadosActuales.length) { cont.innerHTML = '<p class="small">Sin resultados.</p>'; return; }
-  cont.innerHTML = '<table><thead><tr><th>SKU</th><th>Descripción</th><th>UM</th><th>Precio</th></tr></thead><tbody>' +
-    resultadosActuales.map((p, i) =>
-      `<tr class="resultado" data-idx="${i}" onclick="seleccionar(${i})">
-        <td>${p.sku}</td><td>${p.descripcion}</td>
-        <td><span class="badge ${claseUM(p.um)}">${p.um}</span></td>
-        <td>$${p.precio.toFixed(2)}</td>
-      </tr>`).join('') + '</tbody></table>';
+  if (!productos.length && !inventarioBase.length && !productosManuales.length) {
+    cont.innerHTML = '<p class="small">Sube el PDF o el Excel del sistema primero.</p>';
+    return;
+  }
+  resultadosActuales = buscarGlobal(q);
+  if (!resultadosActuales.length) {
+    cont.innerHTML = '<p class="small">Sin resultados.</p>';
+    noEnc.style.display = 'block';
+    return;
+  }
+  cont.innerHTML = '<table><thead><tr><th>SKU</th><th>Descripción</th><th>Precio</th><th>Origen</th></tr></thead><tbody>' +
+    resultadosActuales.map((p, i) => {
+      const exist = getExistencias(p.sku);
+      const exisTxt = (exist !== null) ? `<div class="small" style="color:#1e8449;">Exist: ${exist}</div>` : '';
+      return `<tr class="resultado" data-idx="${i}" onclick="seleccionar(${i})">
+        <td>${p.sku}${exisTxt}</td>
+        <td>${p.descripcion}</td>
+        <td>$${(p.precio || 0).toFixed(2)}</td>
+        <td>${badgeFuente(p.fuente)}</td>
+      </tr>`;
+    }).join('') + '</tbody></table>';
   indiceSel = 0;
   pintarSeleccion();
 }
@@ -1661,6 +1688,7 @@ function teclaBusqueda(e) {
     procesarCodigoEnPedido(q);
     document.getElementById('busqueda').value = '';
     document.getElementById('resultados').innerHTML = '';
+    document.getElementById('noEncontradoWrap').style.display = 'none';
     resultadosActuales = []; indiceSel = -1;
     return;
   }
@@ -1675,11 +1703,26 @@ function seleccionar(i) {
 }
 function abrirModalCantidad(p) {
   productoSeleccionado = p;
+  const exist = getExistencias(p.sku);
+  const fuente = p.fuente || 'PDF';
+  const existHTML = (exist !== null)
+    ? `<span class="pill pill-existencias">📦 En existencia: ${exist} ${p.um || 'pzs'}</span>`
+    : `<span class="pill pill-sin-datos">⚠️ Existencias: no hay datos</span>`;
+  const fuenteHTML =
+    fuente === 'PDF' ? `<span class="pill pill-promo">🏷️ EN PROMOCIÓN</span>` :
+    fuente === 'Sistema' ? `<span class="pill pill-sistema">📦 SISTEMA</span>` :
+    `<span class="pill pill-manual">✏️ MANUAL</span>`;
   document.getElementById('infoProducto').innerHTML = `
-    <div style="font-weight:bold; font-size:14px;">${p.sku}</div>
-    <div class="small" style="margin:4px 0;">${p.descripcion}</div>
-    <div><span class="badge ${claseUM(p.um)}">${p.um}</span>
-      <span style="color:#1a5fbf; font-weight:bold; margin-left:8px;">$${p.precio.toFixed(2)}</span>
+    <div class="modal-cant-header">
+      <div class="modal-cant-sku">${p.sku}</div>
+      <div class="modal-cant-desc">${p.descripcion}</div>
+      <div><span class="badge ${claseUM(p.um)}">${p.um}</span>
+        <span style="color:#1a5fbf; font-weight:bold; margin-left:8px;">$${(p.precio || 0).toFixed(2)}</span>
+      </div>
+    </div>
+    <div class="modal-cant-info">
+      ${fuenteHTML}
+      ${existHTML}
     </div>`;
   const inp = document.getElementById('inputCant');
   inp.value = 1;
@@ -1691,6 +1734,7 @@ function cerrarModalCantidad() {
   productoSeleccionado = null;
   document.getElementById('busqueda').value = '';
   document.getElementById('resultados').innerHTML = '';
+  document.getElementById('noEncontradoWrap').style.display = 'none';
   resultadosActuales = []; indiceSel = -1;
   if (tabActual === 'vincular') document.getElementById('inputCodigo').focus();
   else document.getElementById('busqueda').focus();
@@ -1705,9 +1749,52 @@ function confirmarCantidad() {
 function agregarAlPedido(p, cant) {
   const ex = pedido.find(x => x.sku === p.sku);
   if (ex) ex.cantidad += cant;
-  else pedido.push({ sku: p.sku, descripcion: p.descripcion, precio: p.precio, um: p.um, cantidad: cant });
+  else pedido.push({
+    sku: p.sku,
+    descripcion: p.descripcion,
+    precio: p.precio || 0,
+    um: p.um,
+    cantidad: cant,
+    fuente: p.fuente || 'PDF',
+    agregadoPor: usuarioLogueado,
+    fecha: new Date().toISOString()
+  });
   renderPedido();
   guardarEstado();
+}
+
+/* ============ NUEVO PRODUCTO MANUAL ============ */
+function abrirModalNuevoProducto() {
+  const q = document.getElementById('busqueda').value.trim();
+  document.getElementById('npSku').value = q.toUpperCase();
+  document.getElementById('npDesc').value = '';
+  document.getElementById('npUm').value = 'PIEZA';
+  document.getElementById('npPrecio').value = '';
+  document.getElementById('modalNuevoProducto').classList.add('activo');
+  setTimeout(() => document.getElementById('npDesc').focus(), 100);
+}
+function guardarNuevoProducto() {
+  const sku = document.getElementById('npSku').value.trim().toUpperCase();
+  const desc = document.getElementById('npDesc').value.trim();
+  const um = document.getElementById('npUm').value;
+  const precio = parseFloat(document.getElementById('npPrecio').value) || 0;
+  if (!sku) { alert('Pon el SKU.'); return; }
+  if (!desc) { alert('Pon la descripción.'); return; }
+  if (precio < 0) { alert('Precio inválido.'); return; }
+  if (productosManuales.some(p => p.sku === sku) ||
+      productos.some(p => p.sku === sku) ||
+      inventarioBase.some(p => p.sku === sku)) {
+    alert('Ya existe un producto con ese SKU.'); return;
+  }
+  const nuevo = { sku, descripcion: desc, um, precio, fuente: 'Manual',
+                  creadoPor: usuarioLogueado, fecha: new Date().toISOString() };
+  productosManuales.push(nuevo);
+  guardarEstado();
+  document.getElementById('modalNuevoProducto').classList.remove('activo');
+  document.getElementById('noEncontradoWrap').style.display = 'none';
+  // Agregar directo al pedido
+  abrirModalCantidad(nuevo);
+  toast('✔ Producto agregado');
 }
 
 /* ============ VINCULAR ============ */
@@ -1719,12 +1806,16 @@ function capturarCodigo() {
   document.getElementById('bannerCodigoNuevo').classList.remove('show');
   const skuEx = skuDeCodigo(codigo);
   if (skuEx) {
+    const v = vinculos[codigo];
+    const creador = v && v.creadoPor ? v.creadoPor : '—';
+    const fecha = v && v.fecha ? fmtFecha(v.fecha) : '—';
     const prod = productos.find(p => p.sku.toUpperCase() === skuEx.toUpperCase());
     document.getElementById('bannerCodigoYaVinculadoTexto').innerHTML = `
       <div>El código <b style="font-family:monospace;">${codigo}</b> ya está asignado a:</div>
       <div style="background:white; padding:10px; border-radius:6px; font-family:monospace; margin-top:6px;">
         <div style="font-size:16px; font-weight:bold; color:#1a3a6b;">${skuEx}</div>
         ${prod ? '<div style="font-size:12px; color:#555;">' + prod.descripcion + '</div>' : ''}
+        <div style="font-size:11px; color:#888; margin-top:4px;">Creado por: ${creador} · ${fecha}</div>
       </div>
       <div style="margin-top:10px; display:flex; gap:8px;">
         <button class="amarillo" style="font-size:13px; padding:8px 14px;"
@@ -1766,10 +1857,20 @@ function limpiarInputCodigo() {
 function buscarParaVincular() {
   const q = document.getElementById('busquedaSku').value.toLowerCase().trim();
   const cont = document.getElementById('resultadosSku');
-  if (!productos.length) { cont.innerHTML = '<p class="small">Sin catálogo.</p>'; return; }
-  const res = q
-    ? productos.filter(p => p.sku.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)).slice(0, 30)
-    : productos.slice(0, 30);
+  if (!productos.length && !inventarioBase.length) { cont.innerHTML = '<p class="small">Sin catálogo.</p>'; return; }
+  // Combinar productos del PDF + inventario + manuales para asignar vínculos
+  const todos = new Map();
+  productos.forEach(p => todos.set(p.sku.toUpperCase(), p));
+  inventarioBase.forEach(p => {
+    const k = p.sku.toUpperCase();
+    if (!todos.has(k)) todos.set(k, { sku: p.sku, descripcion: p.descripcion || '', precio: p.precio || 0, um: detectarUM(p.sku) });
+  });
+  productosManuales.forEach(p => {
+    const k = p.sku.toUpperCase();
+    if (!todos.has(k)) todos.set(k, p);
+  });
+  const arr = Array.from(todos.values());
+  const res = q ? arr.filter(p => p.sku.toLowerCase().includes(q) || (p.descripcion||'').toLowerCase().includes(q)).slice(0, 30) : arr.slice(0, 30);
   if (!res.length) { cont.innerHTML = '<p class="small">Sin resultados.</p>'; return; }
   cont.innerHTML = '<table><thead><tr><th>SKU</th><th>Descripción</th><th></th></tr></thead><tbody>' +
     res.map(p => {
@@ -1806,16 +1907,23 @@ function guardarVinculo(sku, esReemplazo) {
   const codigo = codigoPendiente;
   if (vinculos[codigo]) delete vinculos[codigo];
   if (esReemplazo) { const cv = codigoDeSku(sku); if (cv) delete vinculos[cv]; }
-  vinculos[codigo] = sku;
+  vinculos[codigo] = {
+    sku,
+    creadoPor: usuarioLogueado,
+    fecha: new Date().toISOString()
+  };
   localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
   guardarEstado();
   renderVinculos();
-  const prod = productos.find(p => p.sku === sku);
+  const prod = productos.find(p => p.sku === sku) ||
+               productosManuales.find(p => p.sku === sku) ||
+               inventarioBase.find(p => p.sku === sku);
   document.getElementById('exitoFullscreenDetalle').innerHTML =
     `<div style="opacity:.8; font-size:13px;">CÓDIGO</div>
      <div style="font-size:18px; margin:8px 0;">${codigo}</div>
      <div style="opacity:.8; font-size:13px;">ASIGNADO A</div>
-     <div style="font-size:18px; font-weight:bold; margin-top:8px;">${sku}</div>`;
+     <div style="font-size:18px; font-weight:bold; margin-top:8px;">${sku}</div>
+     <div style="font-size:12px; opacity:.9; margin-top:10px;">Registrado por: ${usuarioLogueado}</div>`;
   document.getElementById('exitoFullscreen').classList.add('show');
   setTimeout(() => {
     document.getElementById('exitoFullscreen').classList.remove('show');
@@ -1830,22 +1938,28 @@ function guardarVinculo(sku, esReemplazo) {
 function renderVinculos() {
   const tb = document.querySelector('#tablaVinculos tbody');
   const filtro = (document.getElementById('filtroVinculos').value || '').toLowerCase().trim();
-  const entries = Object.entries(vinculos).filter(([cod, sku]) => {
+  const entries = Object.entries(vinculos).filter(([cod, val]) => {
     if (!filtro) return true;
+    const sku = typeof val === 'string' ? val : val.sku;
     const prod = productos.find(p => p.sku.toUpperCase() === sku.toUpperCase());
     const desc = prod ? prod.descripcion.toLowerCase() : '';
     return cod.toLowerCase().includes(filtro) || sku.toLowerCase().includes(filtro) || desc.includes(filtro);
   });
   document.getElementById('contadorVinculos').textContent = Object.keys(vinculos).length;
   if (!entries.length) {
-    tb.innerHTML = '<tr><td colspan="4" class="small" style="text-align:center; padding:20px;">Sin vínculos</td></tr>';
+    tb.innerHTML = '<tr><td colspan="5" class="small" style="text-align:center; padding:20px;">Sin vínculos</td></tr>';
     return;
   }
-  tb.innerHTML = entries.map(([cod, sku]) => {
-    const prod = productos.find(p => p.sku.toUpperCase() === sku.toUpperCase());
+  tb.innerHTML = entries.map(([cod, val]) => {
+    const sku = typeof val === 'string' ? val : val.sku;
+    const creador = (typeof val === 'object' && val.creadoPor) ? '@' + val.creadoPor : '—';
+    const prod = productos.find(p => p.sku.toUpperCase() === sku.toUpperCase()) ||
+                 inventarioBase.find(p => p.sku.toUpperCase() === sku.toUpperCase()) ||
+                 productosManuales.find(p => p.sku.toUpperCase() === sku.toUpperCase());
     const desc = prod ? prod.descripcion : '⚠️';
     return `<tr><td style="font-family:monospace;">${cod}</td><td>${sku}</td>
       <td class="small">${desc}</td>
+      <td class="small">${creador}</td>
       <td><button class="rojo" style="padding:6px 10px; font-size:12px;" onclick="borrarVinculo('${cod}')">X</button></td></tr>`;
   }).join('');
 }
@@ -1858,7 +1972,7 @@ function borrarVinculo(codigo) {
 }
 function exportarVinculos() {
   if (!Object.keys(vinculos).length) { alert('Sin vínculos.'); return; }
-  const data = { version: 1, exportado: new Date().toISOString(), vinculos };
+  const data = { version: 2, exportado: new Date().toISOString(), vinculos };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1867,6 +1981,25 @@ function exportarVinculos() {
   a.click();
   URL.revokeObjectURL(url);
   toast('📤');
+}
+function exportarVinculosExcel() {
+  if (!Object.keys(vinculos).length) { alert('Sin vínculos.'); return; }
+  const aoa = [['Código de barras', 'SKU', 'Descripción', 'Creado por', 'Fecha']];
+  Object.entries(vinculos).forEach(([cod, val]) => {
+    const sku = typeof val === 'string' ? val : val.sku;
+    const creador = (typeof val === 'object' && val.creadoPor) ? val.creadoPor : '—';
+    const fecha = (typeof val === 'object' && val.fecha) ? fmtFecha(val.fecha) : '—';
+    const prod = productos.find(p => p.sku.toUpperCase() === sku.toUpperCase()) ||
+                 inventarioBase.find(p => p.sku.toUpperCase() === sku.toUpperCase()) ||
+                 productosManuales.find(p => p.sku.toUpperCase() === sku.toUpperCase());
+    aoa.push([cod, sku, prod ? prod.descripcion : '', creador, fecha]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 20 }, { wch: 18 }, { wch: 45 }, { wch: 15 }, { wch: 20 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Vínculos');
+  XLSX.writeFile(wb, `vinculos_sahagun_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('📊 Descargado');
 }
 function importarVinculos(event) {
   const file = event.target.files[0];
@@ -1880,91 +2013,9 @@ function importarVinculos(event) {
       const total = Object.keys(nuevos).length;
       const fusionar = confirm(`${total} vínculos.\n\n• Aceptar = FUSIONAR\n• Cancelar = REEMPLAZAR`);
       vinculos = fusionar ? { ...vinculos, ...nuevos } : { ...nuevos };
+      migrarVinculos();
       localStorage.setItem(KEY_MAP, JSON.stringify(vinculos));
       guardarEstado();
       renderVinculos();
       toast(`✔ ${total}`);
-    } catch (err) { alert('Error: ' + err.message); }
-  };
-  reader.readAsText(file);
-}
-
-/* ============ PEDIDO RENDER ============ */
-function renderPedido() {
-  const tb = document.querySelector('#tablaPedido tbody');
-  tb.innerHTML = pedido.map((p, i) => `
-    <tr>
-      <td>${p.sku}</td>
-      <td>${p.descripcion}</td>
-      <td><input class="cant" type="number" min="1" value="${p.cantidad}"
-                 onchange="cambiarCant(${i}, this.value)"></td>
-      <td><span class="badge ${claseUM(p.um)}">${p.um}</span></td>
-      <td><button class="rojo" onclick="eliminar(${i})" style="padding:6px 10px;">X</button></td>
-    </tr>`).join('');
-  const tc = pedido.reduce((s, p) => s + p.cantidad, 0);
-  const ti = pedido.reduce((s, p) => s + p.precio * p.cantidad, 0);
-  document.getElementById('totalCant').textContent = tc;
-  document.getElementById('totalImp').textContent = '$' + ti.toFixed(2);
-  document.getElementById('contador').textContent = pedido.length;
-}
-function cambiarCant(i, v) { pedido[i].cantidad = Math.max(1, parseInt(v) || 1); renderPedido(); guardarEstado(); }
-function eliminar(i) { pedido.splice(i, 1); renderPedido(); guardarEstado(); }
-function limpiarPedido() {
-  if (!pedido.length) return;
-  if (confirm('¿Borrar todo el pedido?')) { pedido = []; renderPedido(); guardarEstado(); }
-}
-function exportarExcel() {
-  if (!pedido.length) { alert('Lista vacía.'); return; }
-  const tienda = document.getElementById('tienda').value || 'SAHAGUN';
-  const fecha = new Date().toLocaleDateString('es-MX').replace(/\//g, '-');
-  const aoa = [];
-  aoa.push(['Formato de Pedidos', '', 'Tienda', tienda]);
-  aoa.push(['', '', 'Fecha', fecha]);
-  aoa.push(['Rex', 'Descripción', 'Cantidad', 'UM']);
-  pedido.forEach(p => aoa.push([p.sku, p.descripcion, p.cantidad, p.um]));
-  for (let i = 0; i < 15; i++) aoa.push(['', '', '', '']);
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{ wch: 18 }, { wch: 50 }, { wch: 12 }, { wch: 10 }];
-  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Pedido');
-  XLSX.writeFile(wb, `pedido_${tienda}_${fecha}.xlsx`);
-}
-
-/* ============ ARRANQUE ============ */
-function arrancar() {
-  document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('activo'));
-  try {
-    cargarConfig();
-    inicializarUsuarios();
-  } catch(e) { console.error('Init:', e); }
-  const sesionUser = cargarSesion();
-  if (sesionUser) {
-    usuarioLogueado = sesionUser;
-    entrarApp();
-  } else {
-    document.getElementById('loginBg').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
-    setTimeout(() => { const inp = document.getElementById('loginUsuario'); if (inp) inp.focus(); }, 200);
-  }
-}
-arrancar();
-
-/* ============ AUTO-AVANCE OTP ============ */
-document.addEventListener('DOMContentLoaded', () => {
-  const inputs = document.querySelectorAll('#otpInputs input');
-  inputs.forEach((inp, idx) => {
-    inp.addEventListener('input', (e) => {
-      const v = e.target.value.replace(/[^0-9]/g, '');
-      e.target.value = v.slice(0, 1);
-      if (v && idx < inputs.length - 1) inputs[idx + 1].focus();
-    });
-    inp.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && !e.target.value && idx > 0) inputs[idx - 1].focus();
-      if (e.key === 'Enter') { e.preventDefault(); verificarOTP(); }
-    });
-  });
-});
-</script>
-</body>
-</html>
+    } catch (err) { alert('
